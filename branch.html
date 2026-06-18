@@ -516,7 +516,7 @@ window.addEventListener('load', function() {
   if (SUPABASE_URL && SUPABASE_KEY) {
     document.getElementById('config-box').style.display = 'none';
     if (initSupabase()) loadAll();
-  } else {
+} else {
     // Demo mode with local data
     SALES_LIST = [{name:'ประยูร เครือญัญา',team:'ทีม A'},{name:'สุดารัก เกศธิญัณน์',team:'ทีม A'},{name:'สถิตย์ หอมเจือม',team:'ทีม B'}];
     CAR_MODELS = ['P-UP','MU-X','D-MAX 4WD','D-MAX 2WD'];
