@@ -545,10 +545,19 @@ async function loadAll() {
   } catch(err) {
     setOnline(false);
     // Fallback demo
-    if (!SALES_LIST.length) SALES_LIST = [{name:'ประยูร เครือญัญา',team:'ทีม A'},{name:'สุดารัก เกศธิญัณน์',team:'ทีม A'},{name:'สถิตย์ หอมเจือม',team:'ทีม B'}];
+    // Demo fallback per branch
+    if (!SALES_LIST.length) {
+      var demoMap = {
+        'บางเสาธง': [{name:'ประยูร เครือรัญญา',team:'ทีม A'},{name:'สุดามาศ เกษมลักษณ์',team:'ทีม A'},{name:'สถิตย์ หอมเนียม',team:'ทีม B'}],
+        'ศรีนครินทร์': [{name:'วิชัย มีสุข',team:'ทีม A'},{name:'นภา สุขสม',team:'ทีม B'}],
+        'บางนา': [{name:'พิมพ์ใจ แก้วมณี',team:'ทีม A'},{name:'ธนา ศรีทอง',team:'ทีม B'}],
+      };
+      SALES_LIST = demoMap[BRANCH] || [{name:'เซล 1',team:'ทีม A'},{name:'เซล 2',team:'ทีม B'}];
+    }
     if (!CAR_MODELS.length) CAR_MODELS = ['D-MAX','MU-X'];
     if (!CAR_MODELS_PUP.length) CAR_MODELS_PUP = ['Cab4 HR','Cab4 NR','SPC HR','SPC NR','STD'];
     if (!CAR_MODELS_MUX.length) CAR_MODELS_MUX = ['Active','Elegant','Ultimate','RS'];
+    if (!CAREERS.length) CAREERS = ['เกษตรกร','รับราชการ','พนักงานบริษัท','ธุรกิจส่วนตัว','รับจ้างทั่วไป','ค้าขาย'];
     if (!CAREERS.length) CAREERS = ['เกษตรกร','รับราชการ','พนักงานบริษัท','ธุรกิจส่วนตัว'];
     renderAll();
   }
@@ -574,6 +583,8 @@ function renderAll() {
   renderReport();
   renderCost();
   renderAlerts();
+  // sync local var ชื่อสาขาบน topbar
+  document.getElementById('sb-branch-name').textContent = 'สาขา' + BRANCH;
 }
 
 // ═══════════ DASHBOARD ═══════════
@@ -658,7 +669,9 @@ function buildDayTabs() {
 function renderPersonGrid() {
   var grid = document.getElementById('person-grid'); if (!grid) return;
   if (!SALES_LIST.length) {
-    grid.innerHTML = '<div style="text-align:center;padding:40px;color:var(--g400);font-size:14px;grid-column:1/-1">ยังไม่มีรายชื่อเซล — กรุณาติดต่อ Admin</div>';
+    grid.innerHTML = '<div style="text-align:center;padding:40px;color:var(--g400);font-size:14px;grid-column:1/-1">⏳ กำลังโหลดรายชื่อเซล...<br><span style="font-size:12px;margin-top:8px;display:block">ถ้ารอนานให้รีเฟรชหน้า หรือตรวจสอบ Supabase URL</span></div>';
+    // ลอง reload ใหม่หลัง 2 วินาที
+    setTimeout(function(){ if(!SALES_LIST.length) loadAll(); }, 2000);
     return;
   }
   grid.innerHTML = '';

@@ -1040,6 +1040,233 @@ window.addEventListener('load',function(){
   var url=localStorage.getItem('sb_url');var key=localStorage.getItem('sb_key');
   if(url&&key){document.getElementById('cfg-url').value=url;document.getElementById('cfg-key').value=key;}
 });
+
+// ═══════════════ IMPORT SALES ═══════════════
+var importData = [];
+
+function handleFileDrop(e) {
+  e.preventDefault();
+  var dz = document.getElementById('drop-zone');
+  dz.style.borderColor='var(--g200)'; dz.style.background='#fff';
+  var file = e.dataTransfer.files[0];
+  if (file) processFile(file);
+}
+function handleFileSelect(input) {
+  if (input.files[0]) processFile(input.files[0]);
+}
+
+async function processFile(file) {
+  var btn = document.getElementById('import-btn');
+  if(btn){ btn.textContent='⏳ กำลังอ่านไฟล์...'; }
+  document.getElementById('file-name-display').textContent = '📄 ' + file.name + ' (' + (file.size/1024).toFixed(1) + ' KB)';
+  try {
+    if (file.name.endsWith('.csv')) { await parseCSV(file); }
+    else { await parseXLSX(file); }
+  } catch(e) {
+    showImportResult('error', 'อ่านไฟล์ไม่ได้: ' + e.message);
+    if(btn){ btn.textContent='นำเข้าข้อมูล'; }
+  }
+}
+
+async function parseCSV(file) {
+  var text = await file.text();
+  var lines = text.split('\n').filter(function(l){return l.trim();});
+  if(!lines.length) return;
+  var headers = lines[0].split(',').map(function(h){return h.trim().replace(/^"|"$/g,'');});
+  var rows = [];
+  for (var i=1; i<lines.length; i++) {
+    var vals = lines[i].split(',').map(function(v){return v.trim().replace(/^"|"$/g,'');});
+    if (!vals[0]) continue;
+    var obj = {};
+    headers.forEach(function(h,idx){obj[h]=vals[idx]||'';});
+    rows.push(obj);
+  }
+  importData = normalizeRows(rows);
+  showPreview();
+}
+
+async function parseXLSX(file) {
+  if (!window.XLSX) {
+    await loadScript('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js');
+  }
+  var buf = await file.arrayBuffer();
+  var wb = window.XLSX.read(buf, {type:'array'});
+  var allRows = [];
+  wb.SheetNames.forEach(function(name) {
+    if (name === 'คำแนะนำ') return;
+    var ws = wb.Sheets[name];
+    var json = window.XLSX.utils.sheet_to_json(ws, {defval:''});
+    allRows = allRows.concat(json);
+  });
+  importData = normalizeRows(allRows);
+  showPreview();
+}
+
+function normalizeRows(rows) {
+  return rows.filter(function(r){
+    var name = r['ชื่อ-นามสกุล']||r['ชื่อ-นามสกุล *']||r['name']||'';
+    return name.trim();
+  }).map(function(r){
+    return {
+      name:     (r['ชื่อ-นามสกุล']||r['ชื่อ-นามสกุล *']||r['name']||'').trim(),
+      branch:   (r['สาขา']||r['สาขา *']||r['branch']||'').trim(),
+      team:     (r['ทีม']||r['team']||'ทีม A').trim()||'ทีม A',
+      position: (r['ตำแหน่ง']||r['position']||'SC').trim()||'SC',
+      phone:    (r['เบอร์โทร']||r['phone']||'').trim(),
+    };
+  }).filter(function(r){ return r.name && r.branch; });
+}
+
+function loadScript(src) {
+  return new Promise(function(res,rej){
+    var s=document.createElement('script');
+    s.src=src; s.onload=res; s.onerror=rej;
+    document.head.appendChild(s);
+  });
+}
+
+function showPreview() {
+  var btn = document.getElementById('import-btn');
+  var btn2 = document.getElementById('confirm-import-btn');
+
+  if (!importData.length) {
+    showImportResult('error','ไม่พบข้อมูลที่ถูกต้อง กรุณาตรวจสอบไฟล์');
+    if(btn){ btn.textContent='นำเข้าข้อมูล'; }
+    return;
+  }
+
+  // แสดง preview card
+  document.getElementById('preview-card').style.display='block';
+  document.getElementById('preview-count').textContent = importData.length + ' รายการ';
+  document.getElementById('preview-sub').textContent = 'ตรวจสอบข้อมูลก่อนนำเข้า';
+
+  var thead = document.getElementById('preview-thead');
+  var tbody = document.getElementById('preview-tbody');
+  thead.innerHTML = ['#','ชื่อ-นามสกุล','สาขา','ทีม','ตำแหน่ง','เบอร์โทร','สถานะ']
+    .map(function(h){return '<th>'+h+'</th>';}).join('');
+
+  tbody.innerHTML = importData.slice(0,20).map(function(r,i){
+    var ok = r.name && r.branch;
+    return '<tr>'
+      +'<td style="color:var(--g400)">'+(i+1)+'</td>'
+      +'<td><b>'+r.name+'</b></td>'
+      +'<td>'+r.branch+'</td>'
+      +'<td>'+r.team+'</td>'
+      +'<td><span style="font-size:10px;background:var(--g100);padding:1px 6px;border-radius:4px">'+r.position+'</span></td>'
+      +'<td style="color:var(--g400)">'+r.phone+'</td>'
+      +'<td><span style="font-size:10px;background:'+(ok?'var(--green-l)':'var(--red-l)')+';color:'+(ok?'var(--green)':'var(--red)')+';padding:2px 7px;border-radius:20px;font-weight:700">'+(ok?'✓ พร้อม':'⚠ ไม่ครบ')+'</span></td>'
+      +'</tr>';
+  }).join('');
+  if(importData.length>20){
+    tbody.innerHTML += '<tr><td colspan="7" style="text-align:center;color:var(--g400);padding:8px">... และอีก '+(importData.length-20)+' รายการ</td></tr>';
+  }
+
+  // ── Enable ปุ่ม ──
+  if(btn){
+    btn.textContent = '✅ นำเข้า '+importData.length+' รายการ';
+    btn.style.background='var(--red)';
+    btn.style.color='#fff';
+    btn.style.cursor='pointer';
+    btn.disabled = false;
+  }
+  if(btn2){ btn2.disabled=false; btn2.textContent='✅ ยืนยันนำเข้า'; }
+}
+
+async function doImport() {
+  if (!importData.length) { showToast('ไม่มีข้อมูลที่จะนำเข้า'); return; }
+  var btn = document.getElementById('import-btn');
+  var btn2 = document.getElementById('confirm-import-btn');
+  if(btn){ btn.textContent='⏳ กำลังนำเข้า...'; btn.disabled=true; }
+  if(btn2){ btn2.textContent='⏳ กำลังนำเข้า...'; btn2.disabled=true; }
+
+  // จัดกลุ่มตามสาขา
+  var byBranch = {};
+  importData.forEach(function(r){
+    if(!byBranch[r.branch]) byBranch[r.branch]=[];
+    byBranch[r.branch].push({name:r.name,team:r.team,position:r.position,phone:r.phone});
+  });
+
+  var errors=[], success=0;
+  for (var branch in byBranch) {
+    try {
+      if(!SETTINGS[branch]) SETTINGS[branch]={};
+      var existing = SETTINGS[branch].sales_list||[];
+      var newList = existing.slice();
+      byBranch[branch].forEach(function(person){
+        var idx2 = newList.findIndex(function(s){return s.name===person.name;});
+        if(idx2>=0) newList[idx2]=Object.assign(newList[idx2],person);
+        else newList.push(person);
+        success++;
+      });
+      SETTINGS[branch].sales_list = newList;
+      if(sb) await sb.from('settings').upsert(
+        {branch:branch, key:'sales_list', value:newList},
+        {onConflict:'branch,key'}
+      );
+    } catch(e){ errors.push(branch+': '+e.message); }
+  }
+
+  var msg = '✅ นำเข้าสำเร็จ '+success+' รายการ จาก '+Object.keys(byBranch).length+' สาขา';
+  if(errors.length) msg += ' | ⚠️ ข้อผิดพลาด: '+errors.join(', ');
+  showImportResult(errors.length?'warn':'success', msg);
+  renderSettings();
+
+  // reset
+  importData=[];
+  document.getElementById('preview-card').style.display='none';
+  document.getElementById('file-name-display').textContent='';
+  document.getElementById('file-input').value='';
+  var dz=document.getElementById('drop-zone');
+  if(dz){dz.style.borderColor='var(--g200)';dz.style.background='#fff';}
+  if(btn){ btn.textContent='นำเข้าข้อมูล'; btn.disabled=true; btn.style.background='var(--g200)'; btn.style.color='var(--g400)'; btn.style.cursor='not-allowed'; }
+  if(btn2){ btn2.textContent='✅ ยืนยันนำเข้า'; btn2.disabled=false; }
+  showToast('✅ นำเข้าเสร็จแล้ว!');
+}
+
+function showImportResult(type, msg) {
+  var colors={success:['var(--green-l)','var(--green)'],error:['var(--red-l)','var(--red)'],warn:['var(--amber-l)','var(--amber)']};
+  var c=colors[type]||colors.success;
+  var el=document.getElementById('import-result');
+  if(!el) return;
+  el.style.display='block';
+  el.innerHTML='<div style="background:'+c[0]+';border:1px solid '+c[1]+';border-radius:8px;padding:12px 16px;font-size:13px;font-weight:600;color:'+c[1]+'">'+msg+'</div>';
+}
+
+async function loadCurrentSales() {
+  var wrap=document.getElementById('current-sales-wrap');
+  if(!wrap) return;
+  wrap.innerHTML='<div style="text-align:center;padding:10px;color:var(--g400)">⏳ กำลังโหลด...</div>';
+  var branches=['บางเสาธง','ศรีนครินทร์','บางนา'];
+  var html='';
+  branches.forEach(function(br){
+    var list=(SETTINGS[br]||{}).sales_list||[];
+    html+='<div style="margin-bottom:14px"><div style="font-size:12px;font-weight:700;color:var(--g800);margin-bottom:6px;padding:6px 11px;background:var(--g50);border-radius:6px">🏢 สาขา'+br+' ('+list.length+' คน)</div>';
+    if(!list.length){
+      html+='<div style="padding:6px 11px;color:var(--g400);font-size:12px">ยังไม่มีรายชื่อ</div>';
+    } else {
+      html+='<table class="tbl"><thead><tr><th>#</th><th>ชื่อ-นามสกุล</th><th>ทีม</th><th>ตำแหน่ง</th><th>เบอร์โทร</th><th></th></tr></thead><tbody>';
+      list.forEach(function(p,i){
+        html+='<tr><td style="color:var(--g400)">'+(i+1)+'</td><td><b>'+p.name+'</b></td><td>'+p.team+'</td>'
+          +'<td><span style="font-size:10px;background:var(--g100);padding:1px 6px;border-radius:4px">'+(p.position||'SC')+'</span></td>'
+          +'<td style="color:var(--g400)">'+(p.phone||'—')+'</td>'
+          +'<td><button onclick="deleteSalesDirect(\''+br+'\',\''+p.name+'\')" style="background:none;border:none;color:var(--g400);cursor:pointer;font-size:13px" title="ลบ">✕</button></td></tr>';
+      });
+      html+='</tbody></table>';
+    }
+    html+='</div>';
+  });
+  wrap.innerHTML=html||'<div style="text-align:center;padding:20px;color:var(--g400)">ยังไม่มีข้อมูล</div>';
+}
+
+async function deleteSalesDirect(branch, name) {
+  if(!confirm('ลบ '+name+' ออกจากสาขา'+branch+' ?')) return;
+  if(!SETTINGS[branch]) return;
+  SETTINGS[branch].sales_list=(SETTINGS[branch].sales_list||[]).filter(function(s){return s.name!==name;});
+  if(sb) await sb.from('settings').upsert({branch:branch,key:'sales_list',value:SETTINGS[branch].sales_list},{onConflict:'branch,key'});
+  loadCurrentSales();
+  showToast('✅ ลบ '+name+' แล้ว');
+}
+
 </script>
 </body>
 </html>
