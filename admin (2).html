@@ -1,0 +1,1361 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Admin Dashboard — Isuzu Sales</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700;800&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --red:#CC2229;--red-l:#fff0f0;
+  --blue:#2563eb;--blue-l:#eff6ff;
+  --green:#16a34a;--green-l:#f0fdf4;
+  --purple:#7c3aed;--purple-l:#f5f3ff;
+  --amber:#d97706;--amber-l:#fffbeb;
+  --navy:#1e3a5f;--navy-dark:#142a47;
+  --g50:#f8fafc;--g100:#f1f5f9;--g200:#e2e8f0;--g400:#94a3b8;--g600:#475569;--g800:#1e293b;
+  --sidebar:200px;
+}
+body{font-family:'Sarabun',sans-serif;background:#f0f4f8;color:var(--g800);font-size:14px}
+
+/* LOGIN OVERLAY */
+#admin-login{position:fixed;inset:0;background:var(--navy);display:flex;align-items:center;justify-content:center;z-index:9999}
+.alog-box{background:#fff;border-radius:16px;padding:36px 32px;width:360px}
+.alog-logo{text-align:center;margin-bottom:24px}
+.alog-brand{display:inline-block;background:var(--red);color:#fff;font-size:18px;font-weight:800;padding:7px 18px;border-radius:7px;letter-spacing:2px}
+.alog-title{font-size:15px;font-weight:700;color:var(--g800);margin-top:8px}
+.alog-sub{font-size:12px;color:var(--g400);margin-top:2px}
+.alog-field{margin-bottom:12px}
+.alog-field label{font-size:11px;font-weight:700;color:var(--g600);display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.4px}
+.alog-field input{width:100%;padding:9px 12px;border:1.5px solid var(--g200);border-radius:7px;font-size:14px;font-family:'Sarabun',sans-serif;color:var(--g800);outline:none}
+.alog-field input:focus{border-color:var(--red)}
+.alog-btn{width:100%;background:var(--red);color:#fff;border:none;padding:11px;border-radius:7px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Sarabun',sans-serif}
+.alog-btn:hover{background:#b81e24}
+.alog-err{color:var(--red);font-size:12px;text-align:center;margin-top:8px;min-height:18px}
+.alog-config{background:#eff6ff;border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:#1e40af}
+.alog-config label{font-size:11px;font-weight:700;display:block;margin-bottom:4px;margin-top:8px}
+.alog-config input{width:100%;padding:6px 9px;border:1.5px solid #bfdbfe;border-radius:5px;font-size:12px;font-family:'Sarabun',sans-serif;color:var(--g800);outline:none;background:#fff}
+
+/* SIDEBAR */
+.sidebar{width:var(--sidebar);background:var(--navy);position:fixed;top:0;left:0;height:100vh;display:flex;flex-direction:column;z-index:200}
+.sb-logo{padding:14px 14px 12px;border-bottom:1px solid rgba(255,255,255,.1);display:flex;align-items:center;gap:8px}
+.sb-brand{background:var(--red);color:#fff;font-size:10px;font-weight:800;padding:3px 8px;border-radius:5px;letter-spacing:1.5px}
+.sb-title{color:#fff;font-size:12px;font-weight:700}
+.sb-sub{color:rgba(255,255,255,.4);font-size:9px}
+.sb-section{padding:7px 14px 2px;font-size:9px;font-weight:700;color:rgba(255,255,255,.35);letter-spacing:.8px;text-transform:uppercase}
+.nav-item{display:flex;align-items:center;gap:8px;padding:8px 14px;color:rgba(255,255,255,.65);font-size:12px;font-weight:500;cursor:pointer;border-left:3px solid transparent;transition:all .15s}
+.nav-item:hover{background:rgba(255,255,255,.08);color:#fff}
+.nav-item.active{background:rgba(255,255,255,.12);color:#fff;border-left-color:var(--red)}
+.nav-icon{font-size:14px;width:16px;text-align:center}
+.nav-badge{margin-left:auto;background:var(--red);color:#fff;font-size:9px;font-weight:700;padding:1px 6px;border-radius:20px}
+.sb-footer{margin-top:auto;padding:12px 14px;border-top:1px solid rgba(255,255,255,.08)}
+.sb-logout{width:100%;background:rgba(255,255,255,.1);color:rgba(255,255,255,.7);border:none;padding:7px;border-radius:6px;font-size:11px;cursor:pointer;font-family:'Sarabun',sans-serif}
+.sb-logout:hover{background:rgba(255,255,255,.18);color:#fff}
+.realtime-dot{width:7px;height:7px;border-radius:50%;background:#4ade80;box-shadow:0 0 5px #4ade80;margin-left:auto}
+.realtime-dot.off{background:#f87171;box-shadow:0 0 5px #f87171}
+
+/* TOPBAR */
+.topbar{position:fixed;top:0;left:var(--sidebar);right:0;height:52px;background:#fff;border-bottom:1px solid var(--g200);display:flex;align-items:center;padding:0 20px;gap:12px;z-index:100}
+.tb-title{font-size:15px;font-weight:700;color:var(--g800)}
+.tb-right{margin-left:auto;display:flex;align-items:center;gap:10px;font-size:12px;color:var(--g400)}
+.tb-admin-badge{background:var(--red-l);color:var(--red);padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700}
+
+/* MAIN */
+.main{margin-left:var(--sidebar);margin-top:52px;padding:20px}
+.page{display:none}.page.active{display:block}
+.page-hd{margin-bottom:16px}
+.page-title{font-size:19px;font-weight:800;color:var(--g800)}
+.page-sub{font-size:12px;color:var(--g400);margin-top:2px}
+
+/* BRANCH TABS */
+.branch-tab-row{display:flex;gap:3px;background:var(--g100);border-radius:10px;padding:4px;margin-bottom:18px;width:fit-content}
+.btab{padding:7px 18px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;color:var(--g400);border:none;background:none;font-family:'Sarabun',sans-serif;transition:all .15s;display:flex;align-items:center;gap:6px}
+.btab.active{background:#fff;color:var(--navy);box-shadow:0 1px 4px rgba(0,0,0,.1)}
+.btab-dot{width:8px;height:8px;border-radius:50%;background:var(--g400)}
+.btab.active .btab-dot{background:var(--green)}
+.btab-panel{display:none}.btab-panel.active{display:block}
+
+/* METRIC */
+.metric-row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px}
+.mc{background:#fff;border:1px solid var(--g200);border-radius:11px;padding:13px 15px;position:relative;overflow:hidden}
+.mc::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.mc.blue::before{background:var(--blue)}.mc.green::before{background:var(--green)}
+.mc.purple::before{background:var(--purple)}.mc.amber::before{background:var(--amber)}.mc.red::before{background:var(--red)}
+.mc-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;margin-bottom:8px}
+.mc-icon.blue{background:var(--blue-l)}.mc-icon.green{background:var(--green-l)}
+.mc-icon.purple{background:var(--purple-l)}.mc-icon.amber{background:var(--amber-l)}.mc-icon.red{background:var(--red-l)}
+.mc-lbl{font-size:10px;color:var(--g400);font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+.mc-val{font-size:24px;font-weight:800;color:var(--g800);line-height:1;margin:3px 0}
+.mc-sub{font-size:10px;color:var(--g400)}
+
+/* CARD */
+.card{background:#fff;border:1px solid var(--g200);border-radius:11px;overflow:hidden;margin-bottom:14px}
+.card-hd{padding:12px 16px 10px;border-bottom:1px solid var(--g100);display:flex;align-items:center;justify-content:space-between}
+.card-title{font-size:13px;font-weight:700;color:var(--g800)}
+.card-sub{font-size:11px;color:var(--g400);margin-top:1px}
+.card-body{padding:14px 16px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.grid32{display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-bottom:14px}
+
+/* TABLE */
+.tbl{width:100%;border-collapse:collapse;font-size:12px}
+.tbl th{padding:7px 11px;text-align:left;font-size:10px;font-weight:700;color:var(--g400);text-transform:uppercase;letter-spacing:.4px;background:var(--g50);border-bottom:1px solid var(--g200)}
+.tbl td{padding:8px 11px;border-bottom:1px solid var(--g100);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:var(--g50)}
+.tbl tfoot td{background:var(--g100);font-weight:700;border-top:1.5px solid var(--g200)}
+.num-b{color:var(--blue);font-weight:700}.num-g{color:var(--green);font-weight:700}
+.num-p{color:var(--purple);font-weight:700}.num-r{color:var(--red);font-weight:700}
+
+/* CONVERSION */
+.conv-list{display:flex;flex-direction:column;gap:12px}
+.conv-item{}
+.conv-row-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px}
+.conv-lbl{font-size:12px;font-weight:600;color:var(--g800)}
+.conv-right{text-align:right}
+.conv-pct{font-size:14px;font-weight:800}
+.conv-ratio{font-size:11px;font-weight:600;margin-left:8px}
+.conv-bar-track{height:7px;background:var(--g200);border-radius:4px;overflow:hidden}
+.conv-bar-fill{height:100%;border-radius:4px}
+.conv-detail{font-size:10px;color:var(--g400);margin-top:3px}
+
+/* HEATMAP */
+.hmap-wrap{overflow-x:auto}
+.hmap-table{border-collapse:separate;border-spacing:2px;font-size:10px}
+.hmap-table .rlbl{font-size:11px;font-weight:600;color:var(--g600);padding-right:10px;white-space:nowrap;min-width:100px;vertical-align:middle}
+.hmap-table .dhd{text-align:center;color:var(--g400);font-weight:600;padding:0 0 3px;font-size:9px;min-width:14px}
+.hcell{width:14px;height:14px;border-radius:3px;display:block}
+.hc-full{background:#16a34a}.hc-part{background:#86efac}.hc-none{background:#e2e8f0}.hc-today{background:var(--red)}.hc-future{background:#f8fafc}
+.hlgd{display:flex;align-items:center;gap:10px;margin-top:8px;font-size:10px;color:var(--g400);flex-wrap:wrap}
+.hlgd span{display:flex;align-items:center;gap:4px}
+.hbox{width:11px;height:11px;border-radius:2px;flex-shrink:0}
+
+/* ALERT */
+.alert-list{display:flex;flex-direction:column}
+.al-item{display:flex;align-items:center;gap:10px;padding:8px 16px;border-bottom:1px solid var(--g100)}
+.al-item:last-child{border-bottom:none}
+.al-av{width:28px;height:28px;border-radius:50%;background:var(--g200);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--g600);flex-shrink:0}
+.al-info{flex:1}
+.al-name{font-size:12px;font-weight:600}
+.al-sub{font-size:10px;color:var(--g400)}
+.al-pill-no{font-size:10px;background:var(--red-l);color:var(--red);padding:2px 7px;border-radius:20px;font-weight:700;flex-shrink:0}
+
+/* COST */
+.period-grid{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+.period-card{background:var(--g50);border:1.5px solid var(--g200);border-radius:9px;padding:12px 14px}
+.period-card-hd{font-size:12px;font-weight:700;color:var(--g800);margin-bottom:9px}
+.period-fields{display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:7px}
+.pf label{font-size:10px;font-weight:600;color:var(--g600);display:block;margin-bottom:3px;text-transform:uppercase;letter-spacing:.3px}
+.pf input{width:100%;padding:6px 8px;border:1.5px solid var(--g200);border-radius:6px;font-size:13px;font-weight:600;font-family:'Sarabun',sans-serif;color:var(--g800);background:#fff;outline:none}
+.pf input:focus{border-color:var(--blue)}
+.period-result{background:#fff;border-radius:7px;padding:9px 12px;margin-top:9px;display:grid;grid-template-columns:repeat(4,1fr);gap:8px;text-align:center;border:1px solid var(--g200)}
+.pr-lbl{font-size:9px;color:var(--g400);font-weight:600;text-transform:uppercase}
+.pr-val{font-size:15px;font-weight:800;margin-top:2px}
+
+/* SETTINGS */
+.stabs{display:flex;gap:2px;background:var(--g100);border-radius:8px;padding:3px;margin-bottom:14px;width:fit-content}
+.stab{padding:5px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;color:var(--g400);border:none;background:none;font-family:'Sarabun',sans-serif}
+.stab.active{background:#fff;color:var(--navy);box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.stab-panel{display:none}.stab-panel.active{display:block}
+.bstabs{display:flex;gap:4px;margin-bottom:12px}
+.bstab{padding:5px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid var(--g200);background:#fff;color:var(--g400);font-family:'Sarabun',sans-serif}
+.bstab.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+.bstab-panel{display:none}.bstab-panel.active{display:block}
+.settings-list{display:flex;flex-direction:column;gap:5px;margin-bottom:9px;max-height:220px;overflow-y:auto}
+.sitem{display:flex;align-items:center;gap:8px;padding:7px 11px;background:var(--g50);border:1px solid var(--g200);border-radius:7px}
+.sitem-name{flex:1;font-size:13px;font-weight:500}
+.sitem-sub{font-size:11px;color:var(--g400)}
+.sdel{background:none;border:none;color:var(--g400);cursor:pointer;font-size:14px}
+.sdel:hover{color:var(--red)}
+.sadd-row{display:flex;gap:6px;flex-wrap:wrap}
+.sadd-inp{flex:1;min-width:120px;padding:7px 10px;border:1.5px solid var(--g200);border-radius:7px;font-size:13px;font-family:'Sarabun',sans-serif;color:var(--g800);outline:none}
+.sadd-inp:focus{border-color:var(--blue)}
+.sadd-btn{background:var(--navy);color:#fff;border:none;padding:7px 14px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Sarabun',sans-serif}
+.tag-list{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:7px}
+.tag{background:var(--blue-l);color:var(--blue);border:1px solid #bfdbfe;border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;display:flex;align-items:center;gap:4px}
+.tag-del{cursor:pointer;color:var(--g400);font-size:13px}
+.tag-del:hover{color:var(--red)}
+
+/* FBAR */
+.fbar{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--g200);border-radius:9px;padding:8px 13px;margin-bottom:16px;flex-wrap:wrap}
+.flbl{font-size:11px;color:var(--g400);font-weight:600}
+.fsel{border:1px solid var(--g200);border-radius:6px;padding:4px 9px;font-size:12px;font-family:'Sarabun',sans-serif;color:var(--g800);background:#fff;outline:none;cursor:pointer}
+
+/* CHART */
+.chart-wrap{position:relative;height:180px}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(70px);background:var(--g800);color:#fff;padding:9px 20px;border-radius:20px;font-size:13px;font-weight:500;z-index:9999;transition:transform .25s;pointer-events:none}
+.toast.show{transform:translateX(-50%) translateY(0)}
+
+/* FBAR REFRESH */
+.refresh-btn{margin-left:auto;font-size:11px;color:var(--blue);font-weight:600;cursor:pointer;border:none;background:none;font-family:'Sarabun',sans-serif}
+.arpt-tab{padding:6px 16px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;color:var(--g400);border:none;background:none;font-family:'Sarabun',sans-serif;transition:all .15s}
+.arpt-tab.active{background:#fff;color:var(--navy);box-shadow:0 1px 4px rgba(0,0,0,.1)}
+.arpt-panel{display:none}.arpt-panel.active{display:block}
+</style>
+</head>
+<body>
+
+<!-- ADMIN LOGIN -->
+<div id="admin-login">
+  <div class="alog-box">
+    <div class="alog-logo">
+      <div class="alog-brand">ISUZU</div>
+      <div class="alog-title">Admin Dashboard</div>
+      <div class="alog-sub">การตลาด · ภาพรวมทุกสาขา</div>
+    </div>
+    <div style="display:none">
+      <input type="text" id="cfg-url" value="https://hcenlsbilqrtdstobigc.supabase.co">
+      <input type="text" id="cfg-key" value="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhjZW5sc2JpbHFydGRzdG9iaWdjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3NTQ1NDYsImV4cCI6MjA5NzMzMDU0Nn0.9ZgkBJzCbT9RuDOr1vRkbhVH0jgEIVDwE_f9HarGI3Q">
+    </div>
+    <div class="alog-field">
+      <label>รหัสผ่าน Admin</label>
+      <input type="password" id="admin-pass" placeholder="••••••" onkeydown="if(event.key==='Enter')doAdminLogin()">
+    </div>
+    <button class="alog-btn" onclick="doAdminLogin()">เข้าสู่ระบบ Admin</button>
+    <div class="alog-err" id="alog-err"></div>
+    <div style="text-align:center;margin-top:14px;border-top:1px solid var(--g200);padding-top:12px">
+      <button onclick="downloadTemplate()" style="background:none;border:none;color:var(--blue);font-size:12px;cursor:pointer;font-family:'Sarabun',sans-serif;text-decoration:underline">
+        📥 ดาวน์โหลด Template Excel (ไม่ต้อง Login)
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<aside class="sidebar">
+  <div class="sb-logo">
+    <div class="sb-brand">ISUZU</div>
+    <div><div class="sb-title">Admin</div><div class="sb-sub">ทุกสาขา</div></div>
+  </div>
+  <div class="sb-section">หน้าหลัก</div>
+  <div class="nav-item active" onclick="showPage('dashboard',this)"><span class="nav-icon">📊</span> แดชบอร์ด<div class="realtime-dot" id="rtdot" title="Realtime"></div></div>
+  <div class="nav-item" onclick="showPage('report',this)"><span class="nav-icon">📋</span> รายงาน</div>
+  <div class="sb-section">จัดการ</div>
+  <div class="nav-item" onclick="showPage('cost',this)"><span class="nav-icon">💰</span> ต้นทุน & โปรโมท</div>
+  <div class="nav-item" onclick="showPage('alert',this)"><span class="nav-icon">🔔</span> แจ้งเตือน<span class="nav-badge" id="alert-badge">0</span></div>
+  <div class="nav-item" onclick="showPage('settings',this)"><span class="nav-icon">⚙️</span> ตั้งค่า</div>
+  <div class="nav-item" onclick="showPage('import',this)"><span class="nav-icon">📥</span> นำเข้าเซล</div>
+  <div class="sb-footer">
+    <button class="sb-logout" onclick="doLogout()">ออกจากระบบ</button>
+  </div>
+</aside>
+
+<div class="topbar">
+  <div class="tb-title">ภาพรวมการลงผล Lead / PS / BK</div>
+  <div class="tb-right">
+    <span id="tb-datetime">—</span>
+    <span class="tb-admin-badge">Admin · การตลาด</span>
+  </div>
+</div>
+
+<main class="main">
+
+<!-- DASHBOARD -->
+<div class="page active" id="page-dashboard">
+  <div class="page-hd"><div class="page-title">แดชบอร์ด</div><div class="page-sub">ข้อมูล realtime จาก Supabase — อัปเดตอัตโนมัติ</div></div>
+  <div class="fbar">
+    <span class="flbl">เดือน</span><select class="fsel" id="f-month" onchange="loadDashboard()"></select>
+    <span class="flbl">รุ่น</span><select class="fsel" id="f-model" onchange="loadDashboard()"><option value="ALL">ทุกรุ่น</option><option>P-UP</option><option>MU-X</option></select>
+    <button class="refresh-btn" onclick="loadDashboard()">🔄 รีเฟรช</button>
+  </div>
+
+  <!-- BRANCH TABS -->
+  <div class="branch-tab-row">
+    <button class="btab active" onclick="switchBranchTab('ALL',this)"><div class="btab-dot"></div> ภาพรวมทุกสาขา</button>
+    <button class="btab" onclick="switchBranchTab('บางเสาธง',this)"><div class="btab-dot"></div> บางเสาธง</button>
+    <button class="btab" onclick="switchBranchTab('ศรีนครินทร์',this)"><div class="btab-dot"></div> ศรีนครินทร์</button>
+    <button class="btab" onclick="switchBranchTab('บางนา',this)"><div class="btab-dot"></div> บางนา</button>
+  </div>
+
+  <div id="btab-ALL" class="btab-panel active">
+    <div class="metric-row" id="m-ALL"></div>
+    <div class="grid32">
+      <div class="card" style="margin-bottom:0"><div class="card-hd"><div class="card-title">กราฟยอดรวมรายวัน (ทุกสาขา)</div></div><div class="card-body"><div class="chart-wrap"><canvas id="chart-ALL"></canvas></div></div></div>
+      <div class="card" style="margin-bottom:0"><div class="card-hd"><div class="card-title">📈 Conversion Rate</div></div><div class="card-body"><div class="conv-list" id="conv-ALL"></div></div></div>
+    </div>
+    <div style="height:12px"></div>
+    <div class="card"><div class="card-hd"><div class="card-title">ยอดรวมแยกสาขา</div></div><table class="tbl"><thead><tr><th>สาขา</th><th>Lead</th><th>PS</th><th>BK</th><th>Lead→PS</th><th>อัตราส่วน</th><th>PS→BK</th><th>อัตราส่วน</th><th>รวม</th></tr></thead><tbody id="branch-summary-tbody"></tbody></table></div>
+    <div class="card"><div class="card-hd"><div class="card-title">📅 Heat map ทุกสาขา</div></div><div class="card-body"><div id="hmap-ALL"></div><div class="hlgd"><span><span class="hbox hc-full"></span>ครบถ้วน</span><span><span class="hbox hc-part"></span>บางส่วน</span><span><span class="hbox hc-none"></span>ไม่ได้คีย์</span><span><span class="hbox hc-today"></span>วันนี้</span></div></div></div>
+  </div>
+
+  <div id="btab-บางเสาธง" class="btab-panel"><div class="metric-row" id="m-บางเสาธง"></div><div class="grid32"><div class="card" style="margin-bottom:0"><div class="card-hd"><div class="card-title">กราฟยอด — บางเสาธง</div></div><div class="card-body"><div class="chart-wrap"><canvas id="chart-บางเสาธง"></canvas></div></div></div><div class="card" style="margin-bottom:0"><div class="card-hd"><div class="card-title">📈 Conversion Rate</div></div><div class="card-body"><div class="conv-list" id="conv-บางเสาธง"></div></div></div></div><div style="height:12px"></div><div class="card"><div class="card-hd"><div class="card-title">รายเซล — บางเสาธง</div></div><table class="tbl"><thead><tr><th>เซล</th><th>ทีม</th><th>รุ่น</th><th>Lead</th><th>PS</th><th>BK</th><th>Lead→PS</th><th>PS→BK</th></tr></thead><tbody id="tbody-บางเสาธง"></tbody></table></div><div class="card"><div class="card-hd"><div class="card-title">📅 Heatmap รายเซล — บางเสาธง</div></div><div class="card-body"><div id="hmap-บางเสาธง"></div><div class="hlgd"><span><span class="hbox hc-full"></span>ครบ</span><span><span class="hbox hc-part"></span>บางส่วน</span><span><span class="hbox hc-none"></span>ไม่ได้คีย์</span></div></div></div></div>
+  <div id="btab-ศรีนครินทร์" class="btab-panel"><div class="metric-row" id="m-ศรีนครินทร์"></div><div class="grid32"><div class="card" style="margin-bottom:0"><div class="card-hd"><div class="card-title">กราฟยอด — ศรีนครินทร์</div></div><div class="card-body"><div class="chart-wrap"><canvas id="chart-ศรีนครินทร์"></canvas></div></div></div><div class="card" style="margin-bottom:0"><div class="card-hd"><div class="card-title">📈 Conversion Rate</div></div><div class="card-body"><div class="conv-list" id="conv-ศรีนครินทร์"></div></div></div></div><div style="height:12px"></div><div class="card"><div class="card-hd"><div class="card-title">รายเซล — ศรีนครินทร์</div></div><table class="tbl"><thead><tr><th>เซล</th><th>ทีม</th><th>รุ่น</th><th>Lead</th><th>PS</th><th>BK</th><th>Lead→PS</th><th>PS→BK</th></tr></thead><tbody id="tbody-ศรีนครินทร์"></tbody></table></div><div class="card"><div class="card-hd"><div class="card-title">📅 Heatmap รายเซล — ศรีนครินทร์</div></div><div class="card-body"><div id="hmap-ศรีนครินทร์"></div></div></div></div>
+  <div id="btab-บางนา" class="btab-panel"><div class="metric-row" id="m-บางนา"></div><div class="grid32"><div class="card" style="margin-bottom:0"><div class="card-hd"><div class="card-title">กราฟยอด — บางนา</div></div><div class="card-body"><div class="chart-wrap"><canvas id="chart-บางนา"></canvas></div></div></div><div class="card" style="margin-bottom:0"><div class="card-hd"><div class="card-title">📈 Conversion Rate</div></div><div class="card-body"><div class="conv-list" id="conv-บางนา"></div></div></div></div><div style="height:12px"></div><div class="card"><div class="card-hd"><div class="card-title">รายเซล — บางนา</div></div><table class="tbl"><thead><tr><th>เซล</th><th>ทีม</th><th>รุ่น</th><th>Lead</th><th>PS</th><th>BK</th><th>Lead→PS</th><th>PS→BK</th></tr></thead><tbody id="tbody-บางนา"></tbody></table></div><div class="card"><div class="card-hd"><div class="card-title">📅 Heatmap รายเซล — บางนา</div></div><div class="card-body"><div id="hmap-บางนา"></div></div></div></div>
+</div>
+
+<!-- ALERT -->
+<div class="page" id="page-alert">
+  <div class="page-hd"><div class="page-title">แจ้งเตือน</div><div class="page-sub">เซลที่ยังไม่ลงข้อมูลวันนี้</div></div>
+  <div class="card" style="max-width:600px"><div class="card-hd"><div class="card-title">🔔 ยังไม่ลงข้อมูลวันนี้</div><span id="alert-count-badge" style="font-size:11px;background:var(--red-l);color:var(--red);padding:2px 8px;border-radius:20px;font-weight:700">0 คน</span></div><div class="alert-list" id="alert-list"><div style="text-align:center;padding:30px;color:var(--g400)">กำลังโหลด...</div></div></div>
+</div>
+
+<!-- REPORT -->
+<div class="page" id="page-report">
+  <div class="page-hd"><div class="page-title">สรุปรายเดือน</div><div class="page-sub">Lead / PS / BK แยกตามสาขา ทีม และเซล</div></div>
+  <div class="fbar">
+    <span class="flbl">เดือน</span><select class="fsel" id="r-month" onchange="renderReport()"></select>
+    <span class="flbl">สาขา</span><select class="fsel" id="r-branch" onchange="renderReport()"><option value="ALL">ทุกสาขา</option><option>บางเสาธง</option><option>ศรีนครินทร์</option><option>บางนา</option></select>
+    <span class="flbl">รุ่น</span><select class="fsel" id="r-model" onchange="renderReport()"><option value="ALL">ทุกรุ่น</option><option>P-UP</option><option>MU-X</option></select>
+    <button class="refresh-btn" onclick="renderReport()">🔄 รีเฟรช</button>
+  </div>
+  <!-- Metric summary -->
+  <div class="metric-row" id="rpt-metrics" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px"></div>
+  <!-- Tab row -->
+  <div style="display:flex;gap:3px;background:var(--g100);border-radius:9px;padding:4px;margin-bottom:14px;width:fit-content">
+    <button class="arpt-tab active" onclick="switchArptTab('branch',this)">🏢 รายสาขา</button>
+    <button class="arpt-tab" onclick="switchArptTab('team',this)">👥 รายทีม</button>
+    <button class="arpt-tab" onclick="switchArptTab('sales',this)">🧑 รายเซล</button>
+    <button class="arpt-tab" onclick="switchArptTab('model',this)">🚗 รายรุ่น</button>
+    <button class="arpt-tab" onclick="switchArptTab('bkdetail',this)">📋 รุ่นจอง & อาชีพ</button>
+  </div>
+  <!-- Panel: รายสาขา -->
+  <div id="arpt-panel-branch" class="arpt-panel active">
+    <div class="card"><div class="card-hd"><div class="card-title">ยอดรวมรายสาขา</div></div>
+    <table class="tbl"><thead><tr><th>สาขา</th><th>Lead</th><th>PS</th><th>BK</th><th>Lead→PS</th><th>อัตราส่วน</th><th>PS→BK</th><th>อัตราส่วน</th><th>Lead→BK</th><th>รวม</th></tr></thead>
+    <tbody id="rpt-tbody-branch"></tbody><tfoot><tr id="rpt-tfoot-branch"></tr></tfoot></table></div>
+  </div>
+  <!-- Panel: รายทีม -->
+  <div id="arpt-panel-team" class="arpt-panel">
+    <div class="card"><div class="card-hd"><div class="card-title">ยอดรวมรายทีม</div></div>
+    <table class="tbl"><thead><tr><th>สาขา</th><th>ทีม</th><th>Lead</th><th>PS</th><th>BK</th><th>Lead→PS</th><th>อัตราส่วน</th><th>PS→BK</th><th>อัตราส่วน</th><th>Lead→BK</th><th>เซล</th></tr></thead>
+    <tbody id="rpt-tbody-team"></tbody><tfoot><tr id="rpt-tfoot-team"></tr></tfoot></table></div>
+  </div>
+  <!-- Panel: รายเซล -->
+  <div id="arpt-panel-sales" class="arpt-panel">
+    <div class="card"><div class="card-hd"><div class="card-title">ยอดรวมรายเซล</div></div>
+    <table class="tbl"><thead><tr><th>สาขา</th><th>ทีม</th><th>เซล</th><th>ตำแหน่ง</th><th>รุ่น</th><th>Lead</th><th>PS</th><th>BK</th><th>Lead→PS</th><th>อัตราส่วน</th><th>PS→BK</th><th>อัตราส่วน</th><th>Lead→BK</th></tr></thead>
+    <tbody id="rpt-tbody-sales"></tbody><tfoot><tr id="rpt-tfoot-sales"></tr></tfoot></table></div>
+  </div>
+  <!-- Panel: รายรุ่น -->
+  <div id="arpt-panel-model" class="arpt-panel">
+    <div class="card"><div class="card-hd"><div class="card-title">ยอดรวมรายรุ่น</div></div>
+    <table class="tbl"><thead><tr><th>รุ่น</th><th>Lead</th><th>PS</th><th>BK</th><th>Lead→PS</th><th>อัตราส่วน</th><th>PS→BK</th><th>อัตราส่วน</th><th>Lead→BK</th><th>รวม</th></tr></thead>
+    <tbody id="rpt-tbody-model"></tbody><tfoot><tr id="rpt-tfoot-model"></tr></tfoot></table></div>
+  </div>
+  <!-- Panel: รุ่นจอง & อาชีพ -->
+  <div id="arpt-panel-bkdetail" class="arpt-panel">
+    <div class="fbar" style="margin-bottom:14px">
+      <span class="flbl">สาขา</span>
+      <select class="fsel" id="bk-branch-f" onchange="renderAdminBKDetail()">
+        <option value="ALL">ทุกสาขา</option><option>บางเสาธง</option><option>ศรีนครินทร์</option><option>บางนา</option>
+      </select>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+      <div class="card" style="margin-bottom:0">
+        <div class="card-hd"><div class="card-title">🚗 รุ่นรถที่จอง (BK)</div><span id="a-bkcar-sub" style="font-size:11px;color:var(--g400)"></span></div>
+        <table class="tbl"><thead><tr><th>รุ่นรถ</th><th style="text-align:center">BK</th><th style="text-align:center">%</th><th>เซล</th></tr></thead>
+        <tbody id="a-tbody-bkcar"></tbody><tfoot><tr id="a-tfoot-bkcar"></tr></tfoot></table>
+      </div>
+      <div class="card" style="margin-bottom:0">
+        <div class="card-hd"><div class="card-title">👤 อาชีพลูกค้า (BK)</div><span id="a-career-sub" style="font-size:11px;color:var(--g400)"></span></div>
+        <table class="tbl"><thead><tr><th>อาชีพ</th><th style="text-align:center">BK</th><th style="text-align:center">%</th><th>เซล</th></tr></thead>
+        <tbody id="a-tbody-career"></tbody><tfoot><tr id="a-tfoot-career"></tr></tfoot></table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><div class="card-title">📋 รายการ BK ทั้งหมด</div></div>
+      <table class="tbl"><thead><tr><th>วันที่</th><th>สาขา</th><th>เซล</th><th>รุ่น</th><th>รุ่นรถที่จอง</th><th>อาชีพ</th><th style="text-align:center">BK</th></tr></thead>
+      <tbody id="a-tbody-bklist"></tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- COST -->
+<div class="page" id="page-cost">
+  <div class="page-hd"><div class="page-title">ต้นทุน & โปรโมท</div><div class="page-sub">กำหนดช่วงเวลา ใส่งบ คำนวณต้นทุนต่อ Lead/PS/BK</div></div>
+  <div class="card">
+    <div class="card-hd"><div><div class="card-title">💰 กำหนดช่วงเวลาโปรโมท</div><div class="card-sub">ใส่จำนวนช่วง แล้วกำหนดวันที่และงบแต่ละช่วง</div></div></div>
+    <div class="card-body">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+        <label style="font-size:12px;font-weight:600;color:var(--g600)">จำนวนช่วงเวลา:</label>
+        <input type="number" id="period-count" value="1" min="1" max="6" style="width:60px;padding:6px 10px;border:1.5px solid var(--g200);border-radius:7px;font-size:14px;font-weight:700;text-align:center;font-family:'Sarabun',sans-serif;outline:none">
+        <label style="font-size:12px;font-weight:600;color:var(--g600)">สาขา:</label>
+        <select class="fsel" id="cost-branch" onchange="calcAllCost()"><option value="ALL">ทั้งหมด</option><option>บางเสาธง</option><option>ศรีนครินทร์</option><option>บางนา</option></select>
+        <button onclick="genPeriods()" style="background:var(--navy);color:#fff;border:none;padding:7px 16px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Sarabun',sans-serif">สร้างช่วงเวลา</button>
+      </div>
+      <div class="period-grid" id="period-grid"></div>
+      <div style="display:flex;gap:10px;align-items:center;margin-top:6px;flex-wrap:wrap">
+        <span style="font-size:13px;font-weight:700">รวมงบทั้งหมด: <span id="cost-total-lbl" style="color:var(--red);font-size:16px">฿0</span></span>
+        <button onclick="calcAllCost()" style="background:var(--red);color:#fff;border:none;padding:8px 20px;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Sarabun',sans-serif">คำนวณ</button>
+      </div>
+    </div>
+  </div>
+  <div class="grid2">
+    <div class="card" style="margin-bottom:0"><div class="card-hd"><div class="card-title">📊 Conversion + อัตราส่วน</div></div><div class="card-body"><div class="conv-list" id="cost-conv"></div></div></div>
+    <div class="card" style="margin-bottom:0"><div class="card-hd"><div class="card-title">สรุปต้นทุนรวม</div></div><div class="card-body" id="cost-summary" style="display:grid;grid-template-columns:1fr;gap:9px"></div></div>
+  </div>
+</div>
+
+<!-- SETTINGS -->
+<div class="page" id="page-settings">
+  <div class="page-hd"><div class="page-title">ตั้งค่า</div><div class="page-sub">จัดการรายชื่อเซล ทีม รุ่นรถ อาชีพ — บันทึกลง Supabase</div></div>
+  <div class="stabs">
+    <button class="stab active" onclick="switchStab('sales')">รายชื่อเซล</button>
+    <button class="stab" onclick="switchStab('dropdown')">Dropdown ข้อมูล</button>
+    <button class="stab" onclick="switchStab('links')">Links สาขา</button>
+  </div>
+  <div class="stab-panel active" id="stab-sales">
+    <div class="bstabs">
+      <button class="bstab active" onclick="switchBstab('บางเสาธง')">บางเสาธง</button>
+      <button class="bstab" onclick="switchBstab('ศรีนครินทร์')">ศรีนครินทร์</button>
+      <button class="bstab" onclick="switchBstab('บางนา')">บางนา</button>
+    </div>
+    <div id="bstab-บางเสาธง" class="bstab-panel active"><div class="settings-list" id="slist-บางเสาธง"></div><div class="sadd-row"><input class="sadd-inp" id="sadd-name-บางเสาธง" placeholder="ชื่อ-นามสกุล"><input class="sadd-inp" id="sadd-team-บางเสาธง" placeholder="ชื่อทีม" style="max-width:120px"><button class="sadd-btn" onclick="addSales('บางเสาธง')">+ เพิ่มเซล</button></div></div>
+    <div id="bstab-ศรีนครินทร์" class="bstab-panel"><div class="settings-list" id="slist-ศรีนครินทร์"></div><div class="sadd-row"><input class="sadd-inp" id="sadd-name-ศรีนครินทร์" placeholder="ชื่อ-นามสกุล"><input class="sadd-inp" id="sadd-team-ศรีนครินทร์" placeholder="ชื่อทีม" style="max-width:120px"><button class="sadd-btn" onclick="addSales('ศรีนครินทร์')">+ เพิ่มเซล</button></div></div>
+    <div id="bstab-บางนา" class="bstab-panel"><div class="settings-list" id="slist-บางนา"></div><div class="sadd-row"><input class="sadd-inp" id="sadd-name-บางนา" placeholder="ชื่อ-นามสกุล"><input class="sadd-inp" id="sadd-team-บางนา" placeholder="ชื่อทีม" style="max-width:120px"><button class="sadd-btn" onclick="addSales('บางนา')">+ เพิ่มเซล</button></div></div>
+  </div>
+  <div class="stab-panel" id="stab-dropdown">
+    <div class="grid2">
+      <div>
+        <h3 style="font-size:13px;font-weight:700;margin-bottom:8px">รุ่นรถ P-UP</h3>
+        <div class="tag-list" id="tag-models_pup"></div>
+        <div class="sadd-row"><input class="sadd-inp" id="add-model-pup-inp" placeholder="เช่น Cab4 HR, SPC NR"><button class="sadd-btn" onclick="addTag('models_pup','add-model-pup-inp')">+ เพิ่ม</button></div>
+        <h3 style="font-size:13px;font-weight:700;margin-bottom:8px;margin-top:14px">รุ่นรถ MU-X</h3>
+        <div class="tag-list" id="tag-models_mux"></div>
+        <div class="sadd-row"><input class="sadd-inp" id="add-model-mux-inp" placeholder="เช่น Active, RS"><button class="sadd-btn" onclick="addTag('models_mux','add-model-mux-inp')">+ เพิ่ม</button></div>
+      </div>
+      <div><h3 style="font-size:13px;font-weight:700;margin-bottom:10px">อาชีพลูกค้า (BK)</h3><div class="tag-list" id="tag-careers"></div><div class="sadd-row"><input class="sadd-inp" id="add-career-inp" placeholder="เช่น เกษตรกร"><button class="sadd-btn" onclick="addTag('careers')">+ เพิ่ม</button></div></div>
+    </div>
+  </div>
+  <div class="stab-panel" id="stab-links">
+    <div class="card"><div class="card-hd"><div class="card-title">🔗 Links สำหรับแต่ละสาขา</div></div><div class="card-body">
+      <table class="tbl">
+        <thead><tr><th>สาขา</th><th>Link เซล (เปิดได้เลย ไม่ต้อง login)</th><th>วิธีใช้</th></tr></thead>
+        <tbody>
+          <tr><td><b>บางเสาธง</b></td><td><code style="background:var(--g100);padding:3px 8px;border-radius:5px;font-size:11px">branch.html?branch=บางเสาธง</code></td><td><button onclick="copyLink('บางเสาธง')" style="background:var(--blue-l);color:var(--blue);border:none;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-family:'Sarabun',sans-serif">คัดลอก</button></td></tr>
+          <tr><td><b>ศรีนครินทร์</b></td><td><code style="background:var(--g100);padding:3px 8px;border-radius:5px;font-size:11px">branch.html?branch=ศรีนครินทร์</code></td><td><button onclick="copyLink('ศรีนครินทร์')" style="background:var(--blue-l);color:var(--blue);border:none;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-family:'Sarabun',sans-serif">คัดลอก</button></td></tr>
+          <tr><td><b>บางนา</b></td><td><code style="background:var(--g100);padding:3px 8px;border-radius:5px;font-size:11px">branch.html?branch=บางนา</code></td><td><button onclick="copyLink('บางนา')" style="background:var(--blue-l);color:var(--blue);border:none;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-family:'Sarabun',sans-serif">คัดลอก</button></td></tr>
+          <tr><td><b>Admin</b></td><td><code style="background:var(--g100);padding:3px 8px;border-radius:5px;font-size:11px">admin.html</code></td><td><span style="font-size:11px;color:var(--g400)">ต้องใส่รหัส</span></td></tr>
+        </tbody>
+      </table>
+      <div style="margin-top:12px;padding:12px;background:var(--green-l);border-radius:8px;font-size:12px;color:#14532d">
+        💡 <b>วิธี deploy:</b> อัปโหลดไฟล์ทั้งหมดขึ้น <b>Netlify Drop</b> หรือ <b>GitHub Pages</b> ฟรี → ได้ link จริงทันที
+      </div>
+    </div></div>
+  </div>
+</div>
+
+<!-- ══ IMPORT PAGE ══ -->
+<div class="page" id="page-import">
+  <div class="page-hd"><div class="page-title">นำเข้ารายชื่อเซล</div><div class="page-sub">อัปโหลดไฟล์ Excel template เพื่อนำเข้าข้อมูลเซลทุกสาขาพร้อมกัน</div></div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+    <!-- Download template -->
+    <div class="card" style="margin-bottom:0">
+      <div class="card-hd"><div class="card-title">📥 ดาวน์โหลด Template</div></div>
+      <div class="card-body">
+        <p style="font-size:13px;color:var(--g600);margin-bottom:12px;line-height:1.6">ดาวน์โหลด template Excel แล้วกรอกรายชื่อเซลแต่ละสาขา จากนั้นอัปโหลดกลับมาที่นี่</p>
+        <div style="background:var(--g50);border-radius:8px;padding:12px;margin-bottom:12px;font-size:12px;color:var(--g600)">
+          <div style="font-weight:700;margin-bottom:6px;color:var(--g800)">คอลัมน์ที่ต้องกรอก:</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
+            <div>✅ ชื่อ-นามสกุล <span style="color:var(--red)">(บังคับ)</span></div>
+            <div>✅ สาขา <span style="color:var(--red)">(บังคับ)</span></div>
+            <div>🔵 ทีม</div>
+            <div>🔵 ตำแหน่ง (SC / หัวหน้าทีม)</div>
+            <div>🔵 เบอร์โทร</div>
+          </div>
+        </div>
+        <button onclick="downloadTemplate()" style="display:inline-flex;align-items:center;gap:7px;background:var(--navy);color:#fff;padding:9px 18px;border-radius:8px;font-size:13px;font-weight:700;border:none;cursor:pointer;font-family:'Sarabun',sans-serif">
+          📥 ดาวน์โหลด Template Excel
+        </button>
+      </div>
+    </div>
+
+    <!-- Upload -->
+    <div class="card" style="margin-bottom:0">
+      <div class="card-hd"><div class="card-title">📤 อัปโหลดไฟล์</div></div>
+      <div class="card-body">
+        <div id="drop-zone" style="border:2px dashed var(--g200);border-radius:10px;padding:30px 20px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:12px"
+          onclick="document.getElementById('file-input').click()"
+          ondragover="event.preventDefault();this.style.borderColor='var(--blue)';this.style.background='var(--blue-l)'"
+          ondragleave="this.style.borderColor='var(--g200)';this.style.background='#fff'"
+          ondrop="handleFileDrop(event)">
+          <div style="font-size:32px;margin-bottom:8px">📂</div>
+          <div style="font-size:13px;font-weight:600;color:var(--g800)">คลิกหรือลากไฟล์มาวางที่นี่</div>
+          <div style="font-size:11px;color:var(--g400);margin-top:4px">รองรับ .xlsx และ .csv</div>
+        </div>
+        <input type="file" id="file-input" accept=".xlsx,.csv" style="display:none" onchange="handleFileSelect(this)">
+        <div id="file-name-display" style="font-size:12px;color:var(--g400);margin-bottom:10px;min-height:18px"></div>
+        <button id="import-btn" onclick="doImport()" disabled style="width:100%;background:var(--g200);color:var(--g400);border:none;padding:10px;border-radius:8px;font-size:13px;font-weight:700;cursor:not-allowed;font-family:'Sarabun',sans-serif;transition:all .2s">
+          นำเข้าข้อมูล
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Preview -->
+  <div class="card" id="preview-card" style="display:none">
+    <div class="card-hd">
+      <div><div class="card-title">👁️ ตัวอย่างข้อมูล (Preview)</div><div class="card-sub" id="preview-sub">—</div></div>
+      <div style="display:flex;gap:8px">
+        <span id="preview-count" style="font-size:11px;background:var(--blue-l);color:var(--blue);padding:2px 8px;border-radius:20px;font-weight:700"></span>
+        <button onclick="doImport()" id="confirm-import-btn" style="background:var(--green);color:#fff;border:none;padding:6px 16px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Sarabun',sans-serif">
+          ✅ ยืนยันนำเข้า
+        </button>
+      </div>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="tbl" id="preview-table">
+        <thead><tr id="preview-thead"></tr></thead>
+        <tbody id="preview-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Result -->
+  <div id="import-result" style="display:none;margin-top:14px"></div>
+
+  <!-- History -->
+  <div class="card" style="margin-top:14px">
+    <div class="card-hd"><div class="card-title">📋 รายชื่อเซลปัจจุบัน (Supabase)</div><button onclick="loadCurrentSales()" style="background:var(--g100);border:none;padding:5px 12px;border-radius:6px;font-size:12px;cursor:pointer;font-family:'Sarabun',sans-serif">🔄 โหลด</button></div>
+    <div id="current-sales-wrap" style="padding:14px 16px;color:var(--g400);font-size:13px;text-align:center">กด "โหลด" เพื่อดูรายชื่อเซลปัจจุบัน</div>
+  </div>
+</div>
+
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════ STATE ═══════════════
+var ADMIN_PASSWORD = 'admin1234';
+var sb = null;
+var BRANCHES = ['บางเสาธง','ศรีนครินทร์','บางนา'];
+var SETTINGS = {};
+var CAR_MODELS_PUP = [];
+var CAR_MODELS_MUX = [];
+var ALL_ENTRIES = [];
+var currentBranchTab = 'ALL';
+var MONTH_TH = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+var NOW = new Date();
+var TODAY = NOW.getDate();
+var CURR_MONTH = NOW.getMonth();
+var CURR_YEAR = NOW.getFullYear();
+var DAYS_IN = new Date(CURR_YEAR,CURR_MONTH+1,0).getDate();
+var chartInstances = {};
+var periods = [];
+
+// ═══════════════ LOGIN ═══════════════
+function doAdminLogin() {
+  var pass = document.getElementById('admin-pass').value;
+  var url = 'https://hcenlsbilqrtdstobigc.supabase.co';
+  var key = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhjZW5sc2JpbHFydGRzdG9iaWdjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3NTQ1NDYsImV4cCI6MjA5NzMzMDU0Nn0.9ZgkBJzCbT9RuDOr1vRkbhVH0jgEIVDwE_f9HarGI3Q';
+  if (pass !== ADMIN_PASSWORD) { document.getElementById('alog-err').textContent = 'รหัสผ่านไม่ถูกต้อง'; return; }
+  if (url && key) {
+    localStorage.setItem('sb_url',url); localStorage.setItem('sb_key',key);
+    try { sb = window.supabase.createClient(url,key); } catch(e) {}
+  }
+  document.getElementById('admin-login').style.display='none';
+  initAdmin();
+}
+function doLogout() { document.getElementById('admin-login').style.display='flex'; document.getElementById('admin-pass').value=''; }
+
+// ═══════════════ INIT ═══════════════
+function initAdmin() {
+  populateMonthSelects();
+  updateClock();
+  setInterval(updateClock, 60000);
+  loadAll();
+}
+function updateClock() {
+  var d=new Date();
+  var days=['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์'];
+  document.getElementById('tb-datetime').textContent = days[d.getDay()]+' '+d.getDate()+' '+MONTH_TH[d.getMonth()]+' '+(d.getFullYear()+543)+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+}
+function populateMonthSelects() {
+  ['f-month','r-month'].forEach(function(id) {
+    var sel=document.getElementById(id); if(!sel) return;
+    for(var i=0;i<6;i++){
+      var d=new Date(CURR_YEAR,CURR_MONTH-i,1);
+      var val=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+      var opt=document.createElement('option');
+      opt.value=val; opt.textContent=MONTH_TH[d.getMonth()]+' '+(d.getFullYear()+543);
+      if(i===0) opt.selected=true;
+      sel.appendChild(opt);
+    }
+  });
+}
+
+// ═══════════════ LOAD DATA ═══════════════
+async function loadAll() {
+  if (!sb) { loadDemoData(); return; }
+  try {
+    var {data:sets} = await sb.from('settings').select('*');
+    if(sets) sets.forEach(function(r){
+      if(!SETTINGS[r.branch]) SETTINGS[r.branch]={};
+      SETTINGS[r.branch][r.key] = r.value;
+      if(r.key==='models_pup') CAR_MODELS_PUP = r.value||[];
+      if(r.key==='models_mux') CAR_MODELS_MUX = r.value||[];
+    });
+    await loadDashboard();
+    subscribeRealtime();
+    document.getElementById('rtdot').classList.remove('off');
+  } catch(e) { loadDemoData(); }
+}
+async function loadDashboard() {
+  if (!sb) return;
+  var mf = document.getElementById('f-month')?.value || (CURR_YEAR+'-'+String(CURR_MONTH+1).padStart(2,'0'));
+  var [yr,mo] = mf.split('-').map(Number);
+  var daysIn = new Date(yr,mo,0).getDate();
+  var dateStart = yr+'-'+String(mo).padStart(2,'0')+'-01';
+  var dateEnd = yr+'-'+String(mo).padStart(2,'0')+'-'+String(daysIn).padStart(2,'0');
+  var q = sb.from('entries').select('*').gte('entry_date',dateStart).lte('entry_date',dateEnd);
+  var mf2 = document.getElementById('f-model')?.value;
+  if (mf2 && mf2!=='ALL') q = q.eq('model',mf2);
+  var {data} = await q;
+  ALL_ENTRIES = data||[];
+  renderDashboard();
+  renderAlerts();
+  renderReport();
+  renderSettings();
+  genPeriods();
+}
+function subscribeRealtime() {
+  if(!sb) return;
+  sb.channel('all-entries').on('postgres_changes',{event:'*',schema:'public',table:'entries'},function(){
+    loadDashboard();
+    showToast('🔄 ข้อมูลอัปเดตแล้ว (realtime)');
+  }).subscribe();
+}
+
+// ═══════════════ DASHBOARD RENDER ═══════════════
+function renderDashboard() {
+  var branchesToRender = currentBranchTab==='ALL' ? ['ALL',...BRANCHES] : [currentBranchTab];
+  branchesToRender.forEach(function(br){ renderBranchSection(br); });
+  renderBranchSummaryTable();
+  renderHeatmaps();
+}
+function getEntries(branch) {
+  if(branch==='ALL') return ALL_ENTRIES;
+  return ALL_ENTRIES.filter(function(e){ return e.branch===branch; });
+}
+function calcMetrics(entries) {
+  var lead=0,ps=0,bk=0;
+  entries.forEach(function(e){ lead+=e.lead||0; ps+=e.ps||0; bk+=e.bk||0; });
+  var lpRate = lead>0?(ps/lead*100).toFixed(1):0;
+  var pbRate = ps>0?(bk/ps*100).toFixed(1):0;
+  var lbRate = lead>0?(bk/lead*100).toFixed(1):0;
+  var lpRatio = ps>0?'1 : '+(lead/ps).toFixed(1):'—';
+  var pbRatio = bk>0?'1 : '+(ps/bk).toFixed(1):'—';
+  var lbRatio = bk>0?'1 : '+(lead/bk).toFixed(1):'—';
+  return {lead,ps,bk,lpRate,pbRate,lbRate,lpRatio,pbRatio,lbRatio};
+}
+function renderBranchSection(br) {
+  var entries = getEntries(br);
+  var m = calcMetrics(entries);
+  // Metrics
+  var mEl = document.getElementById('m-'+br);
+  if(mEl) mEl.innerHTML = metricCard('blue','👥','Lead',m.lead.toLocaleString(),'')+metricCard('green','🤝','PS',m.ps.toLocaleString(),'')+metricCard('purple','📋','BK',m.bk.toLocaleString(),'')+metricCard('amber','📊','Lead→PS',m.lpRate+'%','อัตราส่วน '+m.lpRatio)+metricCard('red','🎯','PS→BK',m.pbRate+'%','อัตราส่วน '+m.pbRatio);
+  // Conversion
+  var cEl = document.getElementById('conv-'+br);
+  if(cEl) cEl.innerHTML = convItem('Lead → PS',m.lpRate,m.lpRatio,m.ps,m.lead,'Lead','var(--purple)')+convItem('PS → BK',m.pbRate,m.pbRatio,m.bk,m.ps,'PS','var(--green)')+convItem('Lead → BK (overall)',m.lbRate,m.lbRatio,m.bk,m.lead,'Lead','var(--red)');
+  // Chart
+  var ctx = document.getElementById('chart-'+br);
+  if(ctx) renderChart(br, ctx, entries);
+  // Sales table (per branch)
+  if(br !== 'ALL') {
+    var tbody = document.getElementById('tbody-'+br);
+    if(tbody) renderSalesTable(tbody, entries, br);
+  }
+}
+function metricCard(cls,icon,lbl,val,sub) {
+  return '<div class="mc '+cls+'"><div class="mc-icon '+cls+'">'+icon+'</div><div class="mc-lbl">'+lbl+'</div><div class="mc-val">'+val+'</div><div class="mc-sub">'+sub+'</div></div>';
+}
+function convItem(lbl,pct,ratio,num,den,unit,color) {
+  return '<div class="conv-item"><div class="conv-row-top"><span class="conv-lbl">'+lbl+'</span><div class="conv-right"><span class="conv-pct" style="color:'+color+'">'+pct+'%</span><span class="conv-ratio" style="color:'+color+'">'+ratio+'</span></div></div><div class="conv-bar-track"><div class="conv-bar-fill" style="width:'+Math.min(pct,100)+'%;background:'+color+'"></div></div><div class="conv-detail">'+num.toLocaleString()+' จาก '+den.toLocaleString()+' '+unit+'</div></div>';
+}
+function renderChart(br, ctx, entries) {
+  var dayMap = {};
+  entries.forEach(function(e){ var d=new Date(e.entry_date).getDate(); if(!dayMap[d]) dayMap[d]={lead:0,ps:0,bk:0}; dayMap[d].lead+=e.lead||0; dayMap[d].ps+=e.ps||0; dayMap[d].bk+=e.bk||0; });
+  var days=Array.from({length:TODAY},(_,i)=>i+1);
+  if(chartInstances[br]) chartInstances[br].destroy();
+  chartInstances[br] = new Chart(ctx,{
+    type:'bar',
+    data:{labels:days,datasets:[
+      {label:'Lead',data:days.map(function(d){return (dayMap[d]||{}).lead||0;}),backgroundColor:'rgba(37,99,235,.7)',borderRadius:3},
+      {label:'PS',data:days.map(function(d){return (dayMap[d]||{}).ps||0;}),backgroundColor:'rgba(22,163,74,.7)',borderRadius:3},
+      {label:'BK',data:days.map(function(d){return (dayMap[d]||{}).bk||0;}),backgroundColor:'rgba(124,58,237,.7)',borderRadius:3},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{grid:{display:false},ticks:{font:{size:9}}},y:{grid:{color:'#f1f5f9'},ticks:{font:{size:9}}}}}
+  });
+}
+function renderSalesTable(tbody, entries, branch) {
+  var agg={};
+  entries.forEach(function(e){
+    var k=e.sales_name+'|'+e.model;
+    if(!agg[k]) agg[k]={name:e.sales_name,team:e.team||'',model:e.model,lead:0,ps:0,bk:0};
+    agg[k].lead+=e.lead||0; agg[k].ps+=e.ps||0; agg[k].bk+=e.bk||0;
+  });
+  var rows = Object.values(agg);
+  rows.sort(function(a,b){ return a.name.localeCompare(b.name)||a.model.localeCompare(b.model); });
+  tbody.innerHTML = rows.length ? rows.map(function(r){
+    var lp = r.lead>0?(r.ps/r.lead*100).toFixed(1)+'%':'—';
+    var pb = r.ps>0?(r.bk/r.ps*100).toFixed(1)+'%':'—';
+    return '<tr><td>'+r.name+'</td><td>'+r.team+'</td><td><span style="font-size:10px;font-weight:700;background:var(--g100);padding:2px 6px;border-radius:4px">'+r.model+'</span></td><td class="num-b">'+r.lead+'</td><td class="num-p">'+r.ps+'</td><td class="num-g">'+r.bk+'</td><td class="num-p">'+lp+'</td><td class="num-g">'+pb+'</td></tr>';
+  }).join('') : '<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--g400)">ยังไม่มีข้อมูล</td></tr>';
+}
+function renderBranchSummaryTable() {
+  var tbody = document.getElementById('branch-summary-tbody');
+  if(!tbody) return;
+  var rows = BRANCHES.map(function(br){
+    var m = calcMetrics(getEntries(br));
+    return '<tr><td><b>'+br+'</b></td><td class="num-b">'+m.lead.toLocaleString()+'</td><td class="num-p">'+m.ps.toLocaleString()+'</td><td class="num-g">'+m.bk.toLocaleString()+'</td><td class="num-p">'+m.lpRate+'%</td><td style="color:var(--g400);font-size:11px">'+m.lpRatio+'</td><td class="num-g">'+m.pbRate+'%</td><td style="color:var(--g400);font-size:11px">'+m.pbRatio+'</td><td class="num-r">'+(m.lead+m.ps+m.bk).toLocaleString()+'</td></tr>';
+  });
+  var totals = calcMetrics(ALL_ENTRIES);
+  tbody.innerHTML = rows.join('') + '<tr style="background:var(--g100);font-weight:700"><td>รวม</td><td class="num-b">'+totals.lead.toLocaleString()+'</td><td class="num-p">'+totals.ps.toLocaleString()+'</td><td class="num-g">'+totals.bk.toLocaleString()+'</td><td class="num-p">'+totals.lpRate+'%</td><td style="color:var(--g400);font-size:11px">'+totals.lpRatio+'</td><td class="num-g">'+totals.pbRate+'%</td><td style="color:var(--g400);font-size:11px">'+totals.pbRatio+'</td><td class="num-r">'+(totals.lead+totals.ps+totals.bk).toLocaleString()+'</td></tr>';
+}
+function renderHeatmaps() {
+  // ALL heatmap by branch
+  var elAll = document.getElementById('hmap-ALL');
+  if(elAll) buildHeatmap(elAll, BRANCHES, function(br,d){ return ALL_ENTRIES.filter(function(e){ return e.branch===br && new Date(e.entry_date).getDate()===d; }); }, 'branch');
+  // Per-branch by sales
+  BRANCHES.forEach(function(br) {
+    var el = document.getElementById('hmap-'+br);
+    if(!el) return;
+    var salesList = (SETTINGS[br]||{}).sales_list || [];
+    buildHeatmap(el, salesList.map(function(s){return s.name;}), function(name,d){ return ALL_ENTRIES.filter(function(e){ return e.branch===br && e.sales_name===name && new Date(e.entry_date).getDate()===d; }); }, 'sales');
+  });
+}
+function buildHeatmap(el, rows, getEntriesFn, type) {
+  var html = '<div class="hmap-wrap"><table class="hmap-table"><tr><td class="rlbl"></td>';
+  for(var d=1;d<=DAYS_IN;d++) html+='<td class="dhd">'+d+'</td>';
+  html+='</tr>';
+  rows.forEach(function(row){
+    html+='<tr><td class="rlbl">'+row+'</td>';
+    for(var d=1;d<=DAYS_IN;d++){
+      var isToday=d===TODAY, isFuture=d>TODAY;
+      var cls='hc-future';
+      if(isToday) cls='hc-today';
+      else if(!isFuture){
+        var ents=getEntriesFn(row,d);
+        var tot=ents.reduce(function(s,e){return s+(e.lead||0)+(e.ps||0)+(e.bk||0);},0);
+        cls = tot>5?'hc-full':tot>0?'hc-part':'hc-none';
+      }
+      html+='<td><span class="hcell '+cls+'"></span></td>';
+    }
+    html+='</tr>';
+  });
+  html+='</table></div>';
+  el.innerHTML=html;
+}
+
+// ═══════════════ ALERTS ═══════════════
+function renderAlerts() {
+  var missing=[];
+  var todayStr=CURR_YEAR+'-'+String(CURR_MONTH+1).padStart(2,'0')+'-'+String(TODAY).padStart(2,'0');
+  BRANCHES.forEach(function(br){
+    var salesList=(SETTINGS[br]||{}).sales_list||[];
+    salesList.forEach(function(person){
+      var hasEntry=ALL_ENTRIES.some(function(e){ return e.branch===br&&e.sales_name===person.name&&e.entry_date===todayStr&&((e.lead||0)+(e.ps||0)+(e.bk||0))>0; });
+      if(!hasEntry) missing.push({name:person.name,branch:br,team:person.team||''});
+    });
+  });
+  var badge=document.getElementById('alert-badge'); if(badge) badge.textContent=missing.length;
+  var count=document.getElementById('alert-count-badge'); if(count) count.textContent=missing.length+' คน';
+  var list=document.getElementById('alert-list');
+  if(!list) return;
+  list.innerHTML = missing.length ? missing.map(function(m){
+    var initials=m.name.substring(0,2);
+    return '<div class="al-item"><div class="al-av">'+initials+'</div><div class="al-info"><div class="al-name">'+m.name+'</div><div class="al-sub">สาขา'+m.branch+(m.team?' · '+m.team:'')+'</div></div><span class="al-pill-no">ยังไม่ลงข้อมูล</span></div>';
+  }).join('') : '<div style="text-align:center;padding:30px;color:var(--green);font-size:14px">✅ ทุกคนลงข้อมูลครบแล้ว!</div>';
+}
+
+// ═══════════════ REPORT ═══════════════
+function renderReport() {
+  var bf=document.getElementById('r-branch')?.value||'ALL';
+  var mf=document.getElementById('r-model')?.value||'ALL';
+  var entries=ALL_ENTRIES.filter(function(e){
+    return (bf==='ALL'||e.branch===bf)&&(mf==='ALL'||e.model===mf);
+  });
+  var agg={};
+  entries.forEach(function(e){
+    var k=e.branch+'|'+e.sales_name+'|'+e.team+'|'+e.model;
+    if(!agg[k]) agg[k]={branch:e.branch,name:e.sales_name,team:e.team||'',model:e.model,lead:0,ps:0,bk:0};
+    agg[k].lead+=e.lead||0; agg[k].ps+=e.ps||0; agg[k].bk+=e.bk||0;
+  });
+  var rows=Object.values(agg);
+  rows.sort(function(a,b){return a.branch.localeCompare(b.branch)||a.name.localeCompare(b.name);});
+  var totL=0,totP=0,totB=0;
+  rows.forEach(function(r){totL+=r.lead;totP+=r.ps;totB+=r.bk;});
+  var tbody=document.getElementById('report-tbody');
+  if(tbody) tbody.innerHTML=rows.map(function(r){
+    var lp=r.lead>0?(r.ps/r.lead*100).toFixed(1)+'%':'—';
+    var lpR=r.ps>0?'1:'+(r.lead/r.ps).toFixed(1):'—';
+    var pb=r.ps>0?(r.bk/r.ps*100).toFixed(1)+'%':'—';
+    var pbR=r.bk>0?'1:'+(r.ps/r.bk).toFixed(1):'—';
+    var lb=r.lead>0?(r.bk/r.lead*100).toFixed(1)+'%':'—';
+    return '<tr><td>'+r.branch+'</td><td>'+r.name+'</td><td>'+r.team+'</td><td><span style="font-size:10px;font-weight:700;background:var(--g100);padding:1px 6px;border-radius:4px">'+r.model+'</span></td><td class="num-b">'+r.lead+'</td><td class="num-p">'+r.ps+'</td><td class="num-g">'+r.bk+'</td><td class="num-p">'+lp+'</td><td style="color:var(--g400);font-size:10px">'+lpR+'</td><td class="num-g">'+pb+'</td><td style="color:var(--g400);font-size:10px">'+pbR+'</td><td class="num-r">'+lb+'</td></tr>';
+  }).join('');
+  var tfoot=document.getElementById('report-tfoot');
+  var totLp=totL>0?(totP/totL*100).toFixed(1)+'%':'—';
+  var totPb=totP>0?(totB/totP*100).toFixed(1)+'%':'—';
+  var totLb=totL>0?(totB/totL*100).toFixed(1)+'%':'—';
+  if(tfoot) tfoot.innerHTML='<td colspan="4">รวม</td><td class="num-b">'+totL+'</td><td class="num-p">'+totP+'</td><td class="num-g">'+totB+'</td><td class="num-p">'+totLp+'</td><td></td><td class="num-g">'+totPb+'</td><td></td><td class="num-r">'+totLb+'</td>';
+}
+
+// ═══════════════ COST ═══════════════
+function genPeriods() {
+  var n=parseInt(document.getElementById('period-count')?.value)||1;
+  n=Math.min(Math.max(n,1),6);
+  var grid=document.getElementById('period-grid'); if(!grid) return;
+  grid.innerHTML=''; periods=[];
+  for(var i=0;i<n;i++){
+    var pc=document.createElement('div'); pc.className='period-card';
+    pc.innerHTML='<div class="period-card-hd">ช่วงที่ '+(i+1)+'</div>'
+      +'<div class="period-fields">'
+      +'<div class="pf"><label>วันที่เริ่ม</label><input type="date" id="p'+i+'-start" value="2026-06-'+String(i*10+1).padStart(2,'0')+'"></div>'
+      +'<div class="pf"><label>วันที่สิ้นสุด</label><input type="date" id="p'+i+'-end" value="2026-06-'+String(Math.min(i*10+10,30)).padStart(2,'0')+'"></div>'
+      +'<div class="pf"><label>Facebook Ads (฿)</label><input type="number" id="p'+i+'-fb" placeholder="0" oninput="calcPeriodResult('+i+')"></div>'
+      +'<div class="pf"><label>Google/Line (฿)</label><input type="number" id="p'+i+'-gg" placeholder="0" oninput="calcPeriodResult('+i+')"></div>'
+      +'<div class="pf"><label>Event/ออฟไลน์ (฿)</label><input type="number" id="p'+i+'-ev" placeholder="0" oninput="calcPeriodResult('+i+')"></div>'
+      +'</div>'
+      +'<div class="period-result" id="presult-'+i+'">'
+      +'<div><div class="pr-lbl">งบรวม</div><div class="pr-val" id="p'+i+'-total">฿0</div></div>'
+      +'<div><div class="pr-lbl">ต้นทุน/Lead</div><div class="pr-val" style="color:var(--blue)" id="p'+i+'-cpl">฿—</div></div>'
+      +'<div><div class="pr-lbl">ต้นทุน/PS</div><div class="pr-val" style="color:var(--purple)" id="p'+i+'-cpp">฿—</div></div>'
+      +'<div><div class="pr-lbl">ต้นทุน/BK</div><div class="pr-val" style="color:var(--green)" id="p'+i+'-cpb">฿—</div></div>'
+      +'</div>';
+    grid.appendChild(pc); periods.push(i);
+  }
+  renderCostConv();
+  calcAllCost();
+}
+function calcPeriodResult(i) {
+  var fb=parseFloat(document.getElementById('p'+i+'-fb')?.value)||0;
+  var gg=parseFloat(document.getElementById('p'+i+'-gg')?.value)||0;
+  var ev=parseFloat(document.getElementById('p'+i+'-ev')?.value)||0;
+  var total=fb+gg+ev;
+  var start=document.getElementById('p'+i+'-start')?.value;
+  var end=document.getElementById('p'+i+'-end')?.value;
+  var branchF=document.getElementById('cost-branch')?.value||'ALL';
+  var periodEntries=ALL_ENTRIES.filter(function(e){
+    return (branchF==='ALL'||e.branch===branchF) && e.entry_date>=start && e.entry_date<=end;
+  });
+  var lead=periodEntries.reduce(function(s,e){return s+(e.lead||0);},0)||1;
+  var ps=periodEntries.reduce(function(s,e){return s+(e.ps||0);},0)||1;
+  var bk=periodEntries.reduce(function(s,e){return s+(e.bk||0);},0)||1;
+  document.getElementById('p'+i+'-total').textContent='฿'+total.toLocaleString();
+  document.getElementById('p'+i+'-cpl').textContent=total>0?'฿'+(total/lead).toFixed(2):'฿—';
+  document.getElementById('p'+i+'-cpp').textContent=total>0?'฿'+(total/ps).toFixed(2):'฿—';
+  document.getElementById('p'+i+'-cpb').textContent=total>0?'฿'+(total/bk).toFixed(2):'฿—';
+  calcAllCost();
+}
+function calcAllCost() {
+  var grand=0;
+  periods.forEach(function(i){
+    var fb=parseFloat(document.getElementById('p'+i+'-fb')?.value)||0;
+    var gg=parseFloat(document.getElementById('p'+i+'-gg')?.value)||0;
+    var ev=parseFloat(document.getElementById('p'+i+'-ev')?.value)||0;
+    grand+=fb+gg+ev;
+  });
+  var lbl=document.getElementById('cost-total-lbl'); if(lbl) lbl.textContent='฿'+grand.toLocaleString();
+  var m=calcMetrics(ALL_ENTRIES);
+  var sum=document.getElementById('cost-summary');
+  if(sum) sum.innerHTML = [
+    ['ต้นทุน / Lead','var(--blue)',grand>0?'฿'+(grand/Math.max(m.lead,1)).toFixed(2):'฿—'],
+    ['ต้นทุน / PS','var(--purple)',grand>0?'฿'+(grand/Math.max(m.ps,1)).toFixed(2):'฿—'],
+    ['ต้นทุน / BK','var(--green)',grand>0?'฿'+(grand/Math.max(m.bk,1)).toFixed(2):'฿—'],
+  ].map(function(r){return '<div style="background:var(--g50);border-radius:8px;padding:12px;text-align:center"><div style="font-size:10px;font-weight:700;color:'+r[1]+';text-transform:uppercase;letter-spacing:.4px">'+r[0]+'</div><div style="font-size:22px;font-weight:800;color:'+r[1]+';margin-top:4px">'+r[2]+'</div></div>';}).join('');
+}
+function renderCostConv() {
+  var m=calcMetrics(ALL_ENTRIES);
+  var el=document.getElementById('cost-conv'); if(!el) return;
+  el.innerHTML=convItem('Lead → PS',m.lpRate,m.lpRatio,m.ps,m.lead,'Lead','var(--purple)')+convItem('PS → BK',m.pbRate,m.pbRatio,m.bk,m.ps,'PS','var(--green)')+convItem('Lead → BK',m.lbRate,m.lbRatio,m.bk,m.lead,'Lead','var(--red)');
+}
+
+// ═══════════════ SETTINGS ═══════════════
+function renderSettings() {
+  BRANCHES.forEach(function(br){ renderSalesList(br); });
+  renderTags('models_pup'); renderTags('models_mux'); renderTags('careers');
+}
+function renderSalesList(br) {
+  var el=document.getElementById('slist-'+br); if(!el) return;
+  var list=(SETTINGS[br]||{}).sales_list||[];
+  el.innerHTML=list.map(function(p,i){
+    return '<div class="sitem"><div class="sitem-name">'+p.name+'</div><div class="sitem-sub">'+p.team+'</div><button class="sdel" onclick="delSales(\''+br+'\','+i+')">✕</button></div>';
+  }).join('')||'<div style="padding:10px;color:var(--g400);font-size:13px">ยังไม่มีรายชื่อ</div>';
+}
+async function addSales(br) {
+  var name=document.getElementById('sadd-name-'+br)?.value.trim();
+  var team=document.getElementById('sadd-team-'+br)?.value.trim()||'ทีม A';
+  if(!name){showToast('กรุณาใส่ชื่อ');return;}
+  if(!SETTINGS[br]) SETTINGS[br]={};
+  if(!SETTINGS[br].sales_list) SETTINGS[br].sales_list=[];
+  SETTINGS[br].sales_list.push({name,team});
+  if(sb) await sb.from('settings').upsert({branch:br,key:'sales_list',value:SETTINGS[br].sales_list},{onConflict:'branch,key'});
+  document.getElementById('sadd-name-'+br).value='';
+  document.getElementById('sadd-team-'+br).value='';
+  renderSalesList(br);
+  showToast('✅ เพิ่ม '+name+' ที่สาขา'+br);
+}
+async function delSales(br,idx) {
+  SETTINGS[br].sales_list.splice(idx,1);
+  if(sb) await sb.from('settings').upsert({branch:br,key:'sales_list',value:SETTINGS[br].sales_list},{onConflict:'branch,key'});
+  renderSalesList(br);
+}
+function renderTags(type) {
+  var el=document.getElementById('tag-'+type); if(!el) return;
+  var arr=(SETTINGS['ALL']||{})[type]||[];
+  el.innerHTML=arr.map(function(v,i){return '<div class="tag">'+v+'<span class="tag-del" onclick="delTag(\''+type+'\','+i+')">✕</span></div>';}).join('');
+}
+async function addTag(type, inpId) {
+  if(!inpId) inpId = type==='careers' ? 'add-career-inp' : 'add-model-inp';
+  var val=document.getElementById(inpId)?.value.trim(); if(!val) return;
+  if(!SETTINGS['ALL']) SETTINGS['ALL']={};
+  if(!SETTINGS['ALL'][type]) SETTINGS['ALL'][type]=[];
+  if(SETTINGS['ALL'][type].includes(val)){ showToast('มีรายการนี้แล้ว'); return; }
+  SETTINGS['ALL'][type].push(val);
+  if(sb) await sb.from('settings').upsert({branch:'ALL',key:type,value:SETTINGS['ALL'][type]},{onConflict:'branch,key'});
+  document.getElementById(inpId).value='';
+  renderTags(type);
+  // sync local vars
+  if(type==='models_pup') CAR_MODELS_PUP=SETTINGS['ALL'][type];
+  if(type==='models_mux') CAR_MODELS_MUX=SETTINGS['ALL'][type];
+  showToast('✅ เพิ่ม '+val+' แล้ว');
+}
+async function delTag(type,idx) {
+  SETTINGS['ALL'][type].splice(idx,1);
+  if(sb) await sb.from('settings').upsert({branch:'ALL',key:type,value:SETTINGS['ALL'][type]},{onConflict:'branch,key'});
+  renderTags(type);
+  if(type==='models_pup') CAR_MODELS_PUP=SETTINGS['ALL'][type]||[];
+  if(type==='models_mux') CAR_MODELS_MUX=SETTINGS['ALL'][type]||[];
+  showToast('✅ ลบแล้ว');
+}
+
+// ═══════════════ NAVIGATION ═══════════════
+function showPage(name,el) {
+  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
+  document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});
+  document.getElementById('page-'+name).classList.add('active');
+  if(el) el.classList.add('active');
+  if(name==='report') renderReport();
+  if(name==='cost') genPeriods();
+  if(name==='settings') renderSettings();
+}
+function switchBranchTab(br,el) {
+  currentBranchTab=br;
+  document.querySelectorAll('.btab').forEach(function(b){b.classList.remove('active');});
+  el.classList.add('active');
+  document.querySelectorAll('.btab-panel').forEach(function(p){p.classList.remove('active');});
+  document.getElementById('btab-'+br).classList.add('active');
+  renderBranchSection(br==='ALL'?'ALL':br);
+  if(br==='ALL'){renderBranchSummaryTable();renderHeatmaps();}
+  else{renderSalesTable(document.getElementById('tbody-'+br),getEntries(br),br);buildHeatmap(document.getElementById('hmap-'+br),(SETTINGS[br]||{}).sales_list?.map(function(s){return s.name;})||[],function(name,d){return ALL_ENTRIES.filter(function(e){return e.branch===br&&e.sales_name===name&&new Date(e.entry_date).getDate()===d;});},'sales');}
+}
+function switchStab(name) {
+  document.querySelectorAll('.stab').forEach(function(t,i){t.classList.toggle('active',['sales','dropdown','links'][i]===name);});
+  document.querySelectorAll('.stab-panel').forEach(function(p){p.classList.remove('active');});
+  document.getElementById('stab-'+name).classList.add('active');
+}
+function switchBstab(br) {
+  document.querySelectorAll('.bstab').forEach(function(b){b.classList.toggle('active',b.textContent===br);});
+  BRANCHES.forEach(function(b){document.getElementById('bstab-'+b).classList.toggle('active',b===br);});
+}
+
+// ═══════════════ LINKS ═══════════════
+function copyLink(branch) {
+  var base=window.location.href.replace('admin.html','');
+  navigator.clipboard.writeText(base+'branch.html?branch='+encodeURIComponent(branch));
+  showToast('✅ คัดลอก link สาขา'+branch+' แล้ว');
+}
+
+// ═══════════════ DEMO DATA ═══════════════
+function loadDemoData() {
+  SETTINGS = {
+    'บางเสาธง':{sales_list:[{name:'ประยูร เครือญัญา',team:'ทีม A'},{name:'สุดารัก เกศธิญัณน์',team:'ทีม A'},{name:'สถิตย์ หอมเจือม',team:'ทีม B'}]},
+    'ศรีนครินทร์':{sales_list:[{name:'วิชัย มีสุข',team:'ทีม A'},{name:'นภา สุขสม',team:'ทีม B'}]},
+    'บางนา':{sales_list:[{name:'พิมพ์ใจ แก้วมณี',team:'ทีม A'},{name:'ธนา ศรีทอง',team:'ทีม B'}]},
+    'ALL':{models:['P-UP','MU-X','D-MAX 4WD'],careers:['เกษตรกร','รับราชการ','พนักงานบริษัท','ธุรกิจส่วนตัว']}
+  };
+  var branches=['บางเสาธง','ศรีนครินทร์','บางนา'];
+  var yr=2026,mo=6;
+  ALL_ENTRIES=[];
+  branches.forEach(function(br){
+    (SETTINGS[br].sales_list||[]).forEach(function(person){
+      ['P-UP','MU-X'].forEach(function(model){
+        for(var d=1;d<=TODAY;d++){
+          ALL_ENTRIES.push({branch:br,sales_name:person.name,team:person.team,model:model,entry_date:yr+'-'+String(mo).padStart(2,'0')+'-'+String(d).padStart(2,'0'),lead:Math.floor(Math.random()*8+1),ps:Math.floor(Math.random()*3),bk:Math.floor(Math.random()*2)});
+        }
+      });
+    });
+  });
+  renderDashboard(); renderAlerts(); renderReport(); renderSettings(); genPeriods();
+}
+
+function renderAdminBKDetail() {
+  var bf = document.getElementById('bk-branch-f')?.value||'ALL';
+  var mf = document.getElementById('r-month')?.value||'';
+  var bkEntries = ALL_ENTRIES.filter(function(e){
+    return (bf==='ALL'||e.branch===bf) && (!mf||e.entry_date.startsWith(mf)) && e.bk>0;
+  });
+  var withDetail = bkEntries.filter(function(e){return e.bk_car_model||e.bk_career;});
+  var totalBK = bkEntries.reduce(function(s,e){return s+(e.bk||0);},0);
+  var sub1=document.getElementById('a-bkcar-sub'); var sub2=document.getElementById('a-career-sub');
+  if(sub1) sub1.textContent='BK รวม '+totalBK+' คัน';
+  if(sub2) sub2.textContent='BK รวม '+totalBK+' คัน';
+
+  function aggTable(tbodyId,tfootId,keyFn,color) {
+    var agg={};
+    withDetail.forEach(function(e){
+      var k=keyFn(e)||'ไม่ระบุ';
+      if(!agg[k]) agg[k]={label:k,bk:0,sellers:new Set()};
+      agg[k].bk+=e.bk||0; agg[k].sellers.add(e.sales_name);
+    });
+    var rows=Object.values(agg).sort(function(a,b){return b.bk-a.bk;});
+    var maxBK=rows.length?Math.max.apply(null,rows.map(function(r){return r.bk;})):1;
+    var tbody=document.getElementById(tbodyId); var tfoot=document.getElementById(tfootId);
+    if(tbody) tbody.innerHTML=rows.map(function(r){
+      var pct=totalBK>0?(r.bk/totalBK*100).toFixed(1)+'%':'—';
+      var bar='<div style="display:inline-block;width:'+Math.round(r.bk/maxBK*60)+'px;height:8px;background:'+color+';border-radius:4px;vertical-align:middle;margin-right:4px"></div>';
+      return '<tr><td><b>'+r.label+'</b></td><td style="text-align:center;font-weight:700;color:'+color+'">'+r.bk+'</td><td>'+bar+pct+'</td><td style="font-size:11px;color:var(--g400)">'+r.sellers.size+' คน</td></tr>';
+    }).join('') || '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--g400)">ยังไม่มีข้อมูล</td></tr>';
+    if(tfoot) tfoot.innerHTML='<td>รวม</td><td style="text-align:center;font-weight:700;color:'+color+'">'+totalBK+'</td><td>100%</td><td></td>';
+  }
+  aggTable('a-tbody-bkcar','a-tfoot-bkcar',function(e){return e.bk_car_model;},'var(--green)');
+  aggTable('a-tbody-career','a-tfoot-career',function(e){return e.bk_career;},'var(--purple)');
+
+  var MONTH_TH=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  var listEntries=bkEntries.sort(function(a,b){return b.entry_date.localeCompare(a.entry_date);});
+  var tbody3=document.getElementById('a-tbody-bklist');
+  if(tbody3) tbody3.innerHTML=listEntries.length?listEntries.map(function(e){
+    var d=new Date(e.entry_date);
+    var ds=d.getDate()+' '+MONTH_TH[d.getMonth()]+' '+(d.getFullYear()+543);
+    return '<tr><td style="font-size:11px;color:var(--g400)">'+ds+'</td><td>'+e.branch+'</td><td>'+e.sales_name+'</td><td><span style="font-size:10px;font-weight:700;background:var(--red-l);color:var(--red);padding:1px 6px;border-radius:4px">'+e.model+'</span></td><td>'+( e.bk_car_model||'-')+'</td><td>'+( e.bk_career||'-')+'</td><td style="text-align:center;font-weight:700;color:var(--green)">'+e.bk+'</td></tr>';
+  }).join(''):'<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--g400)">ยังไม่มีข้อมูล</td></tr>';
+}
+
+// ─── hook into switchArptTab ───
+var _origSwitch = switchArptTab;
+switchArptTab = function(name,el){
+  _origSwitch(name,el);
+  if(name==='bkdetail') renderAdminBKDetail();
+};
+
+// ═══════════════ TOAST ═══════════════
+var toastT;
+function showToast(msg){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(function(){t.classList.remove('show');},2500);}
+
+// ═══════════════ INIT ═══════════════
+window.addEventListener('load',function(){
+  var url=localStorage.getItem('sb_url');var key=localStorage.getItem('sb_key');
+  if(url&&key){document.getElementById('cfg-url').value=url;document.getElementById('cfg-key').value=key;}
+});
+
+// ═══════════════ IMPORT SALES ═══════════════
+var importData = [];
+
+function handleFileDrop(e) {
+  e.preventDefault();
+  var dz = document.getElementById('drop-zone');
+  dz.style.borderColor='var(--g200)'; dz.style.background='#fff';
+  var file = e.dataTransfer.files[0];
+  if (file) processFile(file);
+}
+function handleFileSelect(input) {
+  if (input.files[0]) processFile(input.files[0]);
+}
+
+async function processFile(file) {
+  var btn = document.getElementById('import-btn');
+  if(btn){ btn.textContent='⏳ กำลังอ่านไฟล์...'; }
+  document.getElementById('file-name-display').textContent = '📄 ' + file.name + ' (' + (file.size/1024).toFixed(1) + ' KB)';
+  try {
+    if (file.name.endsWith('.csv')) { await parseCSV(file); }
+    else { await parseXLSX(file); }
+  } catch(e) {
+    showImportResult('error', 'อ่านไฟล์ไม่ได้: ' + e.message);
+    if(btn){ btn.textContent='นำเข้าข้อมูล'; }
+  }
+}
+
+async function parseCSV(file) {
+  var text = await file.text();
+  var lines = text.split('\n').filter(function(l){return l.trim();});
+  if(!lines.length) return;
+  var headers = lines[0].split(',').map(function(h){return h.trim().replace(/^"|"$/g,'');});
+  var rows = [];
+  for (var i=1; i<lines.length; i++) {
+    var vals = lines[i].split(',').map(function(v){return v.trim().replace(/^"|"$/g,'');});
+    if (!vals[0]) continue;
+    var obj = {};
+    headers.forEach(function(h,idx){obj[h]=vals[idx]||'';});
+    rows.push(obj);
+  }
+  importData = normalizeRows(rows);
+  showPreview();
+}
+
+async function parseXLSX(file) {
+  if (!window.XLSX) {
+    await loadScript('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js');
+  }
+  var buf = await file.arrayBuffer();
+  var wb = window.XLSX.read(buf, {type:'array'});
+  var allRows = [];
+
+  wb.SheetNames.forEach(function(sheetName) {
+    if (sheetName === 'คำแนะนำ') return;
+    var ws = wb.Sheets[sheetName];
+
+    // อ่านเป็น array 2D
+    var raw = window.XLSX.utils.sheet_to_json(ws, {defval:'', header:1});
+    if (raw.length < 2) return;
+
+    // scan หา header row — แถวที่ col[0] มีคำว่า "ชื่อ"
+    var hdrIdx = -1;
+    for (var i = 0; i < Math.min(raw.length, 5); i++) {
+      var cell0 = String(raw[i][0]||'');
+      var cell1 = String(raw[i][1]||'');
+      // header row: col A มี "ชื่อ" หรือ "name"
+      if (cell0.indexOf('ชื่อ') >= 0 || cell0.toLowerCase().indexOf('name') >= 0 ||
+          cell1.indexOf('สาขา') >= 0) {
+        hdrIdx = i;
+        break;
+      }
+    }
+    if (hdrIdx < 0) return;
+
+    // ใช้ header row เป็น keys (เก็บ raw เพื่อให้ normalizeRows fuzzy match)
+    var headers = raw[hdrIdx].map(function(h){ return String(h||'').trim(); });
+
+    for (var r = hdrIdx + 1; r < raw.length; r++) {
+      var row = raw[r];
+      var nameVal = String(row[0]||'').trim();
+      // ข้าม blank, title, หรือแถว pre-fill สาขาอย่างเดียว
+      if (!nameVal) continue;
+      if (nameVal.indexOf('📋') >= 0 || nameVal.indexOf('รายชื่อ') >= 0) continue;
+      var obj = {};
+      headers.forEach(function(h, ci) {
+        if (h) obj[h] = String(row[ci]||'').trim();
+      });
+      // ต้องมีชื่อและสาขา
+      if (obj[headers[0]] && obj[headers[1]]) allRows.push(obj);
+    }
+  });
+
+  if (!allRows.length) {
+    showImportResult('error','ไม่พบข้อมูล — ตรวจสอบว่ากรอกข้อมูลในแถวหลัง header แล้ว');
+    return;
+  }
+  importData = normalizeRows(allRows);
+  showPreview();
+}
+
+function normalizeRows(rows) {
+  // clean key: ลบ * และ space เกิน
+  function cleanKey(k) { return String(k||'').replace(/\s*\*\s*/g,'').trim(); }
+  // ดึงค่าจาก object โดย fuzzy key
+  function getVal(obj, targets) {
+    // สร้าง map key ที่ clean แล้ว
+    var cleanMap = {};
+    for (var k in obj) { cleanMap[cleanKey(k)] = obj[k]; }
+    for (var i=0; i<targets.length; i++) {
+      var t = cleanKey(targets[i]);
+      if (cleanMap[t] !== undefined && cleanMap[t] !== '') return String(cleanMap[t]).trim();
+      // partial match
+      for (var ck in cleanMap) {
+        if (ck.indexOf(t) >= 0 || t.indexOf(ck) >= 0) {
+          if (cleanMap[ck] !== undefined && cleanMap[ck] !== '') return String(cleanMap[ck]).trim();
+        }
+      }
+    }
+    return '';
+  }
+  return rows.filter(function(r){
+    return getVal(r,['ชื่อ-นามสกุล','ชื่อนามสกุล','name']).length > 0;
+  }).map(function(r){
+    return {
+      name:     getVal(r,['ชื่อ-นามสกุล','ชื่อนามสกุล','name']),
+      branch:   getVal(r,['สาขา','branch']),
+      team:     getVal(r,['ทีม','team']) || 'ทีม A',
+      position: getVal(r,['ตำแหน่ง','position']) || 'SC',
+      phone:    getVal(r,['เบอร์โทร','phone']),
+    };
+  }).filter(function(r){ return r.name && r.branch; });
+}
+
+function loadScript(src) {
+  return new Promise(function(res,rej){
+    var s=document.createElement('script');
+    s.src=src; s.onload=res; s.onerror=rej;
+    document.head.appendChild(s);
+  });
+}
+
+function showPreview() {
+  var btn = document.getElementById('import-btn');
+  var btn2 = document.getElementById('confirm-import-btn');
+
+  if (!importData.length) {
+    showImportResult('error','ไม่พบข้อมูลที่ถูกต้อง กรุณาตรวจสอบไฟล์');
+    if(btn){ btn.textContent='นำเข้าข้อมูล'; }
+    return;
+  }
+
+  // แสดง preview card
+  document.getElementById('preview-card').style.display='block';
+  document.getElementById('preview-count').textContent = importData.length + ' รายการ';
+  document.getElementById('preview-sub').textContent = 'ตรวจสอบข้อมูลก่อนนำเข้า';
+
+  var thead = document.getElementById('preview-thead');
+  var tbody = document.getElementById('preview-tbody');
+  thead.innerHTML = ['#','ชื่อ-นามสกุล','สาขา','ทีม','ตำแหน่ง','เบอร์โทร','สถานะ']
+    .map(function(h){return '<th>'+h+'</th>';}).join('');
+
+  tbody.innerHTML = importData.slice(0,20).map(function(r,i){
+    var ok = r.name && r.branch;
+    return '<tr>'
+      +'<td style="color:var(--g400)">'+(i+1)+'</td>'
+      +'<td><b>'+r.name+'</b></td>'
+      +'<td>'+r.branch+'</td>'
+      +'<td>'+r.team+'</td>'
+      +'<td><span style="font-size:10px;background:var(--g100);padding:1px 6px;border-radius:4px">'+r.position+'</span></td>'
+      +'<td style="color:var(--g400)">'+r.phone+'</td>'
+      +'<td><span style="font-size:10px;background:'+(ok?'var(--green-l)':'var(--red-l)')+';color:'+(ok?'var(--green)':'var(--red)')+';padding:2px 7px;border-radius:20px;font-weight:700">'+(ok?'✓ พร้อม':'⚠ ไม่ครบ')+'</span></td>'
+      +'</tr>';
+  }).join('');
+  if(importData.length>20){
+    tbody.innerHTML += '<tr><td colspan="7" style="text-align:center;color:var(--g400);padding:8px">... และอีก '+(importData.length-20)+' รายการ</td></tr>';
+  }
+
+  // ── Enable ปุ่ม ──
+  if(btn){
+    btn.textContent = '✅ นำเข้า '+importData.length+' รายการ';
+    btn.style.background='var(--red)';
+    btn.style.color='#fff';
+    btn.style.cursor='pointer';
+    btn.disabled = false;
+  }
+  if(btn2){ btn2.disabled=false; btn2.textContent='✅ ยืนยันนำเข้า'; }
+}
+
+async function doImport() {
+  if (!importData.length) { showToast('ไม่มีข้อมูลที่จะนำเข้า'); return; }
+  var btn = document.getElementById('import-btn');
+  var btn2 = document.getElementById('confirm-import-btn');
+  if(btn){ btn.textContent='⏳ กำลังนำเข้า...'; btn.disabled=true; }
+  if(btn2){ btn2.textContent='⏳ กำลังนำเข้า...'; btn2.disabled=true; }
+
+  // จัดกลุ่มตามสาขา
+  var byBranch = {};
+  importData.forEach(function(r){
+    if(!byBranch[r.branch]) byBranch[r.branch]=[];
+    byBranch[r.branch].push({name:r.name,team:r.team,position:r.position,phone:r.phone});
+  });
+
+  var errors=[], success=0;
+  for (var branch in byBranch) {
+    try {
+      if(!SETTINGS[branch]) SETTINGS[branch]={};
+      var existing = SETTINGS[branch].sales_list||[];
+      var newList = existing.slice();
+      byBranch[branch].forEach(function(person){
+        var idx2 = newList.findIndex(function(s){return s.name===person.name;});
+        if(idx2>=0) newList[idx2]=Object.assign(newList[idx2],person);
+        else newList.push(person);
+        success++;
+      });
+      SETTINGS[branch].sales_list = newList;
+      if(sb) await sb.from('settings').upsert(
+        {branch:branch, key:'sales_list', value:newList},
+        {onConflict:'branch,key'}
+      );
+    } catch(e){ errors.push(branch+': '+e.message); }
+  }
+
+  var msg = '✅ นำเข้าสำเร็จ '+success+' รายการ จาก '+Object.keys(byBranch).length+' สาขา';
+  if(errors.length) msg += ' | ⚠️ ข้อผิดพลาด: '+errors.join(', ');
+  showImportResult(errors.length?'warn':'success', msg);
+  renderSettings();
+
+  // reset
+  importData=[];
+  document.getElementById('preview-card').style.display='none';
+  document.getElementById('file-name-display').textContent='';
+  document.getElementById('file-input').value='';
+  var dz=document.getElementById('drop-zone');
+  if(dz){dz.style.borderColor='var(--g200)';dz.style.background='#fff';}
+  if(btn){ btn.textContent='นำเข้าข้อมูล'; btn.disabled=true; btn.style.background='var(--g200)'; btn.style.color='var(--g400)'; btn.style.cursor='not-allowed'; }
+  if(btn2){ btn2.textContent='✅ ยืนยันนำเข้า'; btn2.disabled=false; }
+  showToast('✅ นำเข้าเสร็จแล้ว!');
+}
+
+function showImportResult(type, msg) {
+  var colors={success:['var(--green-l)','var(--green)'],error:['var(--red-l)','var(--red)'],warn:['var(--amber-l)','var(--amber)']};
+  var c=colors[type]||colors.success;
+  var el=document.getElementById('import-result');
+  if(!el) return;
+  el.style.display='block';
+  el.innerHTML='<div style="background:'+c[0]+';border:1px solid '+c[1]+';border-radius:8px;padding:12px 16px;font-size:13px;font-weight:600;color:'+c[1]+'">'+msg+'</div>';
+}
+
+async function loadCurrentSales() {
+  var wrap=document.getElementById('current-sales-wrap');
+  if(!wrap) return;
+  wrap.innerHTML='<div style="text-align:center;padding:10px;color:var(--g400)">⏳ กำลังโหลด...</div>';
+  var branches=['บางเสาธง','ศรีนครินทร์','บางนา'];
+  var html='';
+  branches.forEach(function(br){
+    var list=(SETTINGS[br]||{}).sales_list||[];
+    html+='<div style="margin-bottom:14px"><div style="font-size:12px;font-weight:700;color:var(--g800);margin-bottom:6px;padding:6px 11px;background:var(--g50);border-radius:6px">🏢 สาขา'+br+' ('+list.length+' คน)</div>';
+    if(!list.length){
+      html+='<div style="padding:6px 11px;color:var(--g400);font-size:12px">ยังไม่มีรายชื่อ</div>';
+    } else {
+      html+='<table class="tbl"><thead><tr><th>#</th><th>ชื่อ-นามสกุล</th><th>ทีม</th><th>ตำแหน่ง</th><th>เบอร์โทร</th><th></th></tr></thead><tbody>';
+      list.forEach(function(p,i){
+        html+='<tr><td style="color:var(--g400)">'+(i+1)+'</td><td><b>'+p.name+'</b></td><td>'+p.team+'</td>'
+          +'<td><span style="font-size:10px;background:var(--g100);padding:1px 6px;border-radius:4px">'+(p.position||'SC')+'</span></td>'
+          +'<td style="color:var(--g400)">'+(p.phone||'—')+'</td>'
+          +'<td><button onclick="deleteSalesDirect(\''+br+'\',\''+p.name+'\')" style="background:none;border:none;color:var(--g400);cursor:pointer;font-size:13px" title="ลบ">✕</button></td></tr>';
+      });
+      html+='</tbody></table>';
+    }
+    html+='</div>';
+  });
+  wrap.innerHTML=html||'<div style="text-align:center;padding:20px;color:var(--g400)">ยังไม่มีข้อมูล</div>';
+}
+
+async function deleteSalesDirect(branch, name) {
+  if(!confirm('ลบ '+name+' ออกจากสาขา'+branch+' ?')) return;
+  if(!SETTINGS[branch]) return;
+  SETTINGS[branch].sales_list=(SETTINGS[branch].sales_list||[]).filter(function(s){return s.name!==name;});
+  if(sb) await sb.from('settings').upsert({branch:branch,key:'sales_list',value:SETTINGS[branch].sales_list},{onConflict:'branch,key'});
+  loadCurrentSales();
+  showToast('✅ ลบ '+name+' แล้ว');
+}
+
+
+// ═══════════════ DOWNLOAD TEMPLATE ═══════════════
+var TEMPLATE_B64 = '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';
+
+function downloadTemplate() {
+  try {
+    // วิธี 1: data URI (ทำงานได้ทุก environment รวมถึง GitHub Pages)
+    var dataURI = 'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,' + TEMPLATE_B64;
+    var a = document.createElement('a');
+    a.href = dataURI;
+    a.download = 'sales_import_template.xlsx';
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function(){ document.body.removeChild(a); }, 100);
+    showToast('✅ กำลังดาวน์โหลด Template...');
+  } catch(e) {
+    // วิธี 2: fallback เปิด tab ใหม่
+    try {
+      var dataURI2 = 'data:application/octet-stream;base64,' + TEMPLATE_B64;
+      window.open(dataURI2, '_blank');
+    } catch(e2) {
+      alert('กรุณาคลิกขวาที่ปุ่มแล้วเลือก "Save link as..." หรือติดต่อ Admin');
+    }
+  }
+}
+
+</script>
+</body>
+</html>
