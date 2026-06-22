@@ -193,6 +193,9 @@ body{font-family:'Sarabun',sans-serif;background:#f0f4f8;color:var(--g800);font-
 
 /* FBAR REFRESH */
 .refresh-btn{margin-left:auto;font-size:11px;color:var(--blue);font-weight:600;cursor:pointer;border:none;background:none;font-family:'Sarabun',sans-serif}
+.arpt-tab{padding:6px 16px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;color:var(--g400);border:none;background:none;font-family:'Sarabun',sans-serif;transition:all .15s}
+.arpt-tab.active{background:#fff;color:var(--navy);box-shadow:0 1px 4px rgba(0,0,0,.1)}
+.arpt-panel{display:none}.arpt-panel.active{display:block}
 </style>
 </head>
 <body>
@@ -231,6 +234,7 @@ body{font-family:'Sarabun',sans-serif;background:#f0f4f8;color:var(--g800);font-
   <div class="nav-item" onclick="showPage('cost',this)"><span class="nav-icon">💰</span> ต้นทุน & โปรโมท</div>
   <div class="nav-item" onclick="showPage('alert',this)"><span class="nav-icon">🔔</span> แจ้งเตือน<span class="nav-badge" id="alert-badge">0</span></div>
   <div class="nav-item" onclick="showPage('settings',this)"><span class="nav-icon">⚙️</span> ตั้งค่า</div>
+  <div class="nav-item" onclick="showPage('import',this)"><span class="nav-icon">📥</span> นำเข้าเซล</div>
   <div class="sb-footer">
     <button class="sb-logout" onclick="doLogout()">ออกจากระบบ</button>
   </div>
@@ -287,13 +291,46 @@ body{font-family:'Sarabun',sans-serif;background:#f0f4f8;color:var(--g800);font-
 
 <!-- REPORT -->
 <div class="page" id="page-report">
-  <div class="page-hd"><div class="page-title">รายงาน</div><div class="page-sub">สรุป Lead/PS/BK + Conversion Rate แยกรายเซล</div></div>
+  <div class="page-hd"><div class="page-title">สรุปรายเดือน</div><div class="page-sub">Lead / PS / BK แยกตามสาขา ทีม และเซล</div></div>
   <div class="fbar">
-    <span class="flbl">เดือน</span><select class="fsel" id="r-month" onchange="loadReport()"></select>
-    <span class="flbl">สาขา</span><select class="fsel" id="r-branch" onchange="loadReport()"><option value="ALL">ทั้งหมด</option><option>บางเสาธง</option><option>ศรีนครินทร์</option><option>บางนา</option></select>
-    <span class="flbl">รุ่น</span><select class="fsel" id="r-model" onchange="loadReport()"><option value="ALL">ทุกรุ่น</option><option>P-UP</option><option>MU-X</option></select>
+    <span class="flbl">เดือน</span><select class="fsel" id="r-month" onchange="renderReport()"></select>
+    <span class="flbl">สาขา</span><select class="fsel" id="r-branch" onchange="renderReport()"><option value="ALL">ทุกสาขา</option><option>บางเสาธง</option><option>ศรีนครินทร์</option><option>บางนา</option></select>
+    <span class="flbl">รุ่น</span><select class="fsel" id="r-model" onchange="renderReport()"><option value="ALL">ทุกรุ่น</option><option>P-UP</option><option>MU-X</option></select>
+    <button class="refresh-btn" onclick="renderReport()">🔄 รีเฟรช</button>
   </div>
-  <div class="card"><div class="card-hd"><div class="card-title">รายละเอียดรายเซล</div></div><table class="tbl"><thead><tr><th>สาขา</th><th>เซล</th><th>ทีม</th><th>รุ่น</th><th>Lead</th><th>PS</th><th>BK</th><th>Lead→PS</th><th>อัตราส่วน</th><th>PS→BK</th><th>อัตราส่วน</th><th>Lead→BK</th></tr></thead><tbody id="report-tbody"></tbody><tfoot><tr id="report-tfoot"></tr></tfoot></table></div>
+  <!-- Metric summary -->
+  <div class="metric-row" id="rpt-metrics" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px"></div>
+  <!-- Tab row -->
+  <div style="display:flex;gap:3px;background:var(--g100);border-radius:9px;padding:4px;margin-bottom:14px;width:fit-content">
+    <button class="arpt-tab active" onclick="switchArptTab('branch',this)">🏢 รายสาขา</button>
+    <button class="arpt-tab" onclick="switchArptTab('team',this)">👥 รายทีม</button>
+    <button class="arpt-tab" onclick="switchArptTab('sales',this)">🧑 รายเซล</button>
+    <button class="arpt-tab" onclick="switchArptTab('model',this)">🚗 รายรุ่น</button>
+  </div>
+  <!-- Panel: รายสาขา -->
+  <div id="arpt-panel-branch" class="arpt-panel active">
+    <div class="card"><div class="card-hd"><div class="card-title">ยอดรวมรายสาขา</div></div>
+    <table class="tbl"><thead><tr><th>สาขา</th><th>Lead</th><th>PS</th><th>BK</th><th>Lead→PS</th><th>อัตราส่วน</th><th>PS→BK</th><th>อัตราส่วน</th><th>Lead→BK</th><th>รวม</th></tr></thead>
+    <tbody id="rpt-tbody-branch"></tbody><tfoot><tr id="rpt-tfoot-branch"></tr></tfoot></table></div>
+  </div>
+  <!-- Panel: รายทีม -->
+  <div id="arpt-panel-team" class="arpt-panel">
+    <div class="card"><div class="card-hd"><div class="card-title">ยอดรวมรายทีม</div></div>
+    <table class="tbl"><thead><tr><th>สาขา</th><th>ทีม</th><th>Lead</th><th>PS</th><th>BK</th><th>Lead→PS</th><th>อัตราส่วน</th><th>PS→BK</th><th>อัตราส่วน</th><th>Lead→BK</th><th>เซล</th></tr></thead>
+    <tbody id="rpt-tbody-team"></tbody><tfoot><tr id="rpt-tfoot-team"></tr></tfoot></table></div>
+  </div>
+  <!-- Panel: รายเซล -->
+  <div id="arpt-panel-sales" class="arpt-panel">
+    <div class="card"><div class="card-hd"><div class="card-title">ยอดรวมรายเซล</div></div>
+    <table class="tbl"><thead><tr><th>สาขา</th><th>ทีม</th><th>เซล</th><th>ตำแหน่ง</th><th>รุ่น</th><th>Lead</th><th>PS</th><th>BK</th><th>Lead→PS</th><th>อัตราส่วน</th><th>PS→BK</th><th>อัตราส่วน</th><th>Lead→BK</th></tr></thead>
+    <tbody id="rpt-tbody-sales"></tbody><tfoot><tr id="rpt-tfoot-sales"></tr></tfoot></table></div>
+  </div>
+  <!-- Panel: รายรุ่น -->
+  <div id="arpt-panel-model" class="arpt-panel">
+    <div class="card"><div class="card-hd"><div class="card-title">ยอดรวมรายรุ่น</div></div>
+    <table class="tbl"><thead><tr><th>รุ่น</th><th>Lead</th><th>PS</th><th>BK</th><th>Lead→PS</th><th>อัตราส่วน</th><th>PS→BK</th><th>อัตราส่วน</th><th>Lead→BK</th><th>รวม</th></tr></thead>
+    <tbody id="rpt-tbody-model"></tbody><tfoot><tr id="rpt-tfoot-model"></tr></tfoot></table></div>
+  </div>
 </div>
 
 <!-- COST -->
@@ -361,6 +398,83 @@ body{font-family:'Sarabun',sans-serif;background:#f0f4f8;color:var(--g800);font-
         💡 <b>วิธี deploy:</b> อัปโหลดไฟล์ทั้งหมดขึ้น <b>Netlify Drop</b> หรือ <b>GitHub Pages</b> ฟรี → ได้ link จริงทันที
       </div>
     </div></div>
+  </div>
+</div>
+
+<!-- ══ IMPORT PAGE ══ -->
+<div class="page" id="page-import">
+  <div class="page-hd"><div class="page-title">นำเข้ารายชื่อเซล</div><div class="page-sub">อัปโหลดไฟล์ Excel template เพื่อนำเข้าข้อมูลเซลทุกสาขาพร้อมกัน</div></div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+    <!-- Download template -->
+    <div class="card" style="margin-bottom:0">
+      <div class="card-hd"><div class="card-title">📥 ดาวน์โหลด Template</div></div>
+      <div class="card-body">
+        <p style="font-size:13px;color:var(--g600);margin-bottom:12px;line-height:1.6">ดาวน์โหลด template Excel แล้วกรอกรายชื่อเซลแต่ละสาขา จากนั้นอัปโหลดกลับมาที่นี่</p>
+        <div style="background:var(--g50);border-radius:8px;padding:12px;margin-bottom:12px;font-size:12px;color:var(--g600)">
+          <div style="font-weight:700;margin-bottom:6px;color:var(--g800)">คอลัมน์ที่ต้องกรอก:</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
+            <div>✅ ชื่อ-นามสกุล <span style="color:var(--red)">(บังคับ)</span></div>
+            <div>✅ สาขา <span style="color:var(--red)">(บังคับ)</span></div>
+            <div>🔵 ทีม</div>
+            <div>🔵 ตำแหน่ง (SC / หัวหน้าทีม)</div>
+            <div>🔵 เบอร์โทร</div>
+          </div>
+        </div>
+        <a href="sales_import_template.xlsx" download style="display:inline-flex;align-items:center;gap:7px;background:var(--navy);color:#fff;padding:9px 18px;border-radius:8px;font-size:13px;font-weight:700;text-decoration:none">
+          📥 ดาวน์โหลด Template Excel
+        </a>
+      </div>
+    </div>
+
+    <!-- Upload -->
+    <div class="card" style="margin-bottom:0">
+      <div class="card-hd"><div class="card-title">📤 อัปโหลดไฟล์</div></div>
+      <div class="card-body">
+        <div id="drop-zone" style="border:2px dashed var(--g200);border-radius:10px;padding:30px 20px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:12px"
+          onclick="document.getElementById('file-input').click()"
+          ondragover="event.preventDefault();this.style.borderColor='var(--blue)';this.style.background='var(--blue-l)'"
+          ondragleave="this.style.borderColor='var(--g200)';this.style.background='#fff'"
+          ondrop="handleFileDrop(event)">
+          <div style="font-size:32px;margin-bottom:8px">📂</div>
+          <div style="font-size:13px;font-weight:600;color:var(--g800)">คลิกหรือลากไฟล์มาวางที่นี่</div>
+          <div style="font-size:11px;color:var(--g400);margin-top:4px">รองรับ .xlsx และ .csv</div>
+        </div>
+        <input type="file" id="file-input" accept=".xlsx,.csv" style="display:none" onchange="handleFileSelect(this)">
+        <div id="file-name-display" style="font-size:12px;color:var(--g400);margin-bottom:10px;min-height:18px"></div>
+        <button id="import-btn" onclick="doImport()" disabled style="width:100%;background:var(--g200);color:var(--g400);border:none;padding:10px;border-radius:8px;font-size:13px;font-weight:700;cursor:not-allowed;font-family:'Sarabun',sans-serif;transition:all .2s">
+          นำเข้าข้อมูล
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Preview -->
+  <div class="card" id="preview-card" style="display:none">
+    <div class="card-hd">
+      <div><div class="card-title">👁️ ตัวอย่างข้อมูล (Preview)</div><div class="card-sub" id="preview-sub">—</div></div>
+      <div style="display:flex;gap:8px">
+        <span id="preview-count" style="font-size:11px;background:var(--blue-l);color:var(--blue);padding:2px 8px;border-radius:20px;font-weight:700"></span>
+        <button onclick="doImport()" id="confirm-import-btn" style="background:var(--green);color:#fff;border:none;padding:6px 16px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Sarabun',sans-serif">
+          ✅ ยืนยันนำเข้า
+        </button>
+      </div>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="tbl" id="preview-table">
+        <thead><tr id="preview-thead"></tr></thead>
+        <tbody id="preview-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Result -->
+  <div id="import-result" style="display:none;margin-top:14px"></div>
+
+  <!-- History -->
+  <div class="card" style="margin-top:14px">
+    <div class="card-hd"><div class="card-title">📋 รายชื่อเซลปัจจุบัน (Supabase)</div><button onclick="loadCurrentSales()" style="background:var(--g100);border:none;padding:5px 12px;border-radius:6px;font-size:12px;cursor:pointer;font-family:'Sarabun',sans-serif">🔄 โหลด</button></div>
+    <div id="current-sales-wrap" style="padding:14px 16px;color:var(--g400);font-size:13px;text-align:center">กด "โหลด" เพื่อดูรายชื่อเซลปัจจุบัน</div>
   </div>
 </div>
 
