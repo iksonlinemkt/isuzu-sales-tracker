@@ -205,12 +205,9 @@ body{font-family:'Sarabun',sans-serif;background:#f0f4f8;color:var(--g800);font-
       <div class="alog-title">Admin Dashboard</div>
       <div class="alog-sub">การตลาด · ภาพรวมทุกสาขา</div>
     </div>
-    <div class="alog-config">
-      <strong>⚙️ Supabase Config</strong>
-      <label>Project URL</label>
-      <input type="text" id="cfg-url" placeholder="https://xxxx.supabase.co">
-      <label>Anon Key</label>
-      <input type="text" id="cfg-key" placeholder="eyJhbGciOiJ...">
+    <div style="display:none">
+      <input type="text" id="cfg-url" value="https://hcenlsbilqrtdstobigc.supabase.co">
+      <input type="text" id="cfg-key" value="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhjZW5sc2JpbHFydGRzdG9iaWdjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3NTQ1NDYsImV4cCI6MjA5NzMzMDU0Nn0.9ZgkBJzCbT9RuDOr1vRkbhVH0jgEIVDwE_f9HarGI3Q">
     </div>
     <div class="alog-field">
       <label>รหัสผ่าน Admin</label>
@@ -390,8 +387,8 @@ var periods = [];
 // ═══════════════ LOGIN ═══════════════
 function doAdminLogin() {
   var pass = document.getElementById('admin-pass').value;
-  var url = document.getElementById('cfg-url').value.trim();
-  var key = document.getElementById('cfg-key').value.trim();
+  var url = 'https://hcenlsbilqrtdstobigc.supabase.co';
+  var key = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhjZW5sc2JpbHFydGRzdG9iaWdjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3NTQ1NDYsImV4cCI6MjA5NzMzMDU0Nn0.9ZgkBJzCbT9RuDOr1vRkbhVH0jgEIVDwE_f9HarGI3Q';
   if (pass !== ADMIN_PASSWORD) { document.getElementById('alog-err').textContent = 'รหัสผ่านไม่ถูกต้อง'; return; }
   if (url && key) {
     localStorage.setItem('sb_url',url); localStorage.setItem('sb_key',key);
