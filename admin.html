@@ -306,6 +306,7 @@ body{font-family:'Sarabun',sans-serif;background:#f0f4f8;color:var(--g800);font-
     <button class="arpt-tab" onclick="switchArptTab('team',this)">👥 รายทีม</button>
     <button class="arpt-tab" onclick="switchArptTab('sales',this)">🧑 รายเซล</button>
     <button class="arpt-tab" onclick="switchArptTab('model',this)">🚗 รายรุ่น</button>
+    <button class="arpt-tab" onclick="switchArptTab('bkdetail',this)">📋 รุ่นจอง & อาชีพ</button>
   </div>
   <!-- Panel: รายสาขา -->
   <div id="arpt-panel-branch" class="arpt-panel active">
@@ -330,6 +331,32 @@ body{font-family:'Sarabun',sans-serif;background:#f0f4f8;color:var(--g800);font-
     <div class="card"><div class="card-hd"><div class="card-title">ยอดรวมรายรุ่น</div></div>
     <table class="tbl"><thead><tr><th>รุ่น</th><th>Lead</th><th>PS</th><th>BK</th><th>Lead→PS</th><th>อัตราส่วน</th><th>PS→BK</th><th>อัตราส่วน</th><th>Lead→BK</th><th>รวม</th></tr></thead>
     <tbody id="rpt-tbody-model"></tbody><tfoot><tr id="rpt-tfoot-model"></tr></tfoot></table></div>
+  </div>
+  <!-- Panel: รุ่นจอง & อาชีพ -->
+  <div id="arpt-panel-bkdetail" class="arpt-panel">
+    <div class="fbar" style="margin-bottom:14px">
+      <span class="flbl">สาขา</span>
+      <select class="fsel" id="bk-branch-f" onchange="renderAdminBKDetail()">
+        <option value="ALL">ทุกสาขา</option><option>บางเสาธง</option><option>ศรีนครินทร์</option><option>บางนา</option>
+      </select>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+      <div class="card" style="margin-bottom:0">
+        <div class="card-hd"><div class="card-title">🚗 รุ่นรถที่จอง (BK)</div><span id="a-bkcar-sub" style="font-size:11px;color:var(--g400)"></span></div>
+        <table class="tbl"><thead><tr><th>รุ่นรถ</th><th style="text-align:center">BK</th><th style="text-align:center">%</th><th>เซล</th></tr></thead>
+        <tbody id="a-tbody-bkcar"></tbody><tfoot><tr id="a-tfoot-bkcar"></tr></tfoot></table>
+      </div>
+      <div class="card" style="margin-bottom:0">
+        <div class="card-hd"><div class="card-title">👤 อาชีพลูกค้า (BK)</div><span id="a-career-sub" style="font-size:11px;color:var(--g400)"></span></div>
+        <table class="tbl"><thead><tr><th>อาชีพ</th><th style="text-align:center">BK</th><th style="text-align:center">%</th><th>เซล</th></tr></thead>
+        <tbody id="a-tbody-career"></tbody><tfoot><tr id="a-tfoot-career"></tr></tfoot></table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><div class="card-title">📋 รายการ BK ทั้งหมด</div></div>
+      <table class="tbl"><thead><tr><th>วันที่</th><th>สาขา</th><th>เซล</th><th>รุ่น</th><th>รุ่นรถที่จอง</th><th>อาชีพ</th><th style="text-align:center">BK</th></tr></thead>
+      <tbody id="a-tbody-bklist"></tbody></table>
+    </div>
   </div>
 </div>
 
@@ -379,7 +406,14 @@ body{font-family:'Sarabun',sans-serif;background:#f0f4f8;color:var(--g800);font-
   </div>
   <div class="stab-panel" id="stab-dropdown">
     <div class="grid2">
-      <div><h3 style="font-size:13px;font-weight:700;margin-bottom:10px">รุ่นรถที่จอง (BK)</h3><div class="tag-list" id="tag-models"></div><div class="sadd-row"><input class="sadd-inp" id="add-model-inp" placeholder="เช่น D-MAX 4WD"><button class="sadd-btn" onclick="addTag('models')">+ เพิ่ม</button></div></div>
+      <div>
+        <h3 style="font-size:13px;font-weight:700;margin-bottom:8px">รุ่นรถ P-UP</h3>
+        <div class="tag-list" id="tag-models_pup"></div>
+        <div class="sadd-row"><input class="sadd-inp" id="add-model-pup-inp" placeholder="เช่น Cab4 HR, SPC NR"><button class="sadd-btn" onclick="addTag('models_pup','add-model-pup-inp')">+ เพิ่ม</button></div>
+        <h3 style="font-size:13px;font-weight:700;margin-bottom:8px;margin-top:14px">รุ่นรถ MU-X</h3>
+        <div class="tag-list" id="tag-models_mux"></div>
+        <div class="sadd-row"><input class="sadd-inp" id="add-model-mux-inp" placeholder="เช่น Active, RS"><button class="sadd-btn" onclick="addTag('models_mux','add-model-mux-inp')">+ เพิ่ม</button></div>
+      </div>
       <div><h3 style="font-size:13px;font-weight:700;margin-bottom:10px">อาชีพลูกค้า (BK)</h3><div class="tag-list" id="tag-careers"></div><div class="sadd-row"><input class="sadd-inp" id="add-career-inp" placeholder="เช่น เกษตรกร"><button class="sadd-btn" onclick="addTag('careers')">+ เพิ่ม</button></div></div>
     </div>
   </div>
@@ -487,6 +521,8 @@ var ADMIN_PASSWORD = 'admin1234';
 var sb = null;
 var BRANCHES = ['บางเสาธง','ศรีนครินทร์','บางนา'];
 var SETTINGS = {};
+var CAR_MODELS_PUP = [];
+var CAR_MODELS_MUX = [];
 var ALL_ENTRIES = [];
 var currentBranchTab = 'ALL';
 var MONTH_TH = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
@@ -547,6 +583,8 @@ async function loadAll() {
     if(sets) sets.forEach(function(r){
       if(!SETTINGS[r.branch]) SETTINGS[r.branch]={};
       SETTINGS[r.branch][r.key] = r.value;
+      if(r.key==='models_pup') CAR_MODELS_PUP = r.value||[];
+      if(r.key==='models_mux') CAR_MODELS_MUX = r.value||[];
     });
     await loadDashboard();
     subscribeRealtime();
@@ -828,7 +866,7 @@ function renderCostConv() {
 // ═══════════════ SETTINGS ═══════════════
 function renderSettings() {
   BRANCHES.forEach(function(br){ renderSalesList(br); });
-  renderTags('models'); renderTags('careers');
+  renderTags('models_pup'); renderTags('models_mux'); renderTags('careers');
 }
 function renderSalesList(br) {
   var el=document.getElementById('slist-'+br); if(!el) return;
@@ -860,20 +898,28 @@ function renderTags(type) {
   var arr=(SETTINGS['ALL']||{})[type]||[];
   el.innerHTML=arr.map(function(v,i){return '<div class="tag">'+v+'<span class="tag-del" onclick="delTag(\''+type+'\','+i+')">✕</span></div>';}).join('');
 }
-async function addTag(type) {
-  var inpId=type==='models'?'add-model-inp':'add-career-inp';
+async function addTag(type, inpId) {
+  if(!inpId) inpId = type==='careers' ? 'add-career-inp' : 'add-model-inp';
   var val=document.getElementById(inpId)?.value.trim(); if(!val) return;
   if(!SETTINGS['ALL']) SETTINGS['ALL']={};
   if(!SETTINGS['ALL'][type]) SETTINGS['ALL'][type]=[];
+  if(SETTINGS['ALL'][type].includes(val)){ showToast('มีรายการนี้แล้ว'); return; }
   SETTINGS['ALL'][type].push(val);
   if(sb) await sb.from('settings').upsert({branch:'ALL',key:type,value:SETTINGS['ALL'][type]},{onConflict:'branch,key'});
   document.getElementById(inpId).value='';
   renderTags(type);
+  // sync local vars
+  if(type==='models_pup') CAR_MODELS_PUP=SETTINGS['ALL'][type];
+  if(type==='models_mux') CAR_MODELS_MUX=SETTINGS['ALL'][type];
+  showToast('✅ เพิ่ม '+val+' แล้ว');
 }
 async function delTag(type,idx) {
   SETTINGS['ALL'][type].splice(idx,1);
   if(sb) await sb.from('settings').upsert({branch:'ALL',key:type,value:SETTINGS['ALL'][type]},{onConflict:'branch,key'});
   renderTags(type);
+  if(type==='models_pup') CAR_MODELS_PUP=SETTINGS['ALL'][type]||[];
+  if(type==='models_mux') CAR_MODELS_MUX=SETTINGS['ALL'][type]||[];
+  showToast('✅ ลบแล้ว');
 }
 
 // ═══════════════ NAVIGATION ═══════════════
@@ -935,6 +981,55 @@ function loadDemoData() {
   });
   renderDashboard(); renderAlerts(); renderReport(); renderSettings(); genPeriods();
 }
+
+function renderAdminBKDetail() {
+  var bf = document.getElementById('bk-branch-f')?.value||'ALL';
+  var mf = document.getElementById('r-month')?.value||'';
+  var bkEntries = ALL_ENTRIES.filter(function(e){
+    return (bf==='ALL'||e.branch===bf) && (!mf||e.entry_date.startsWith(mf)) && e.bk>0;
+  });
+  var withDetail = bkEntries.filter(function(e){return e.bk_car_model||e.bk_career;});
+  var totalBK = bkEntries.reduce(function(s,e){return s+(e.bk||0);},0);
+  var sub1=document.getElementById('a-bkcar-sub'); var sub2=document.getElementById('a-career-sub');
+  if(sub1) sub1.textContent='BK รวม '+totalBK+' คัน';
+  if(sub2) sub2.textContent='BK รวม '+totalBK+' คัน';
+
+  function aggTable(tbodyId,tfootId,keyFn,color) {
+    var agg={};
+    withDetail.forEach(function(e){
+      var k=keyFn(e)||'ไม่ระบุ';
+      if(!agg[k]) agg[k]={label:k,bk:0,sellers:new Set()};
+      agg[k].bk+=e.bk||0; agg[k].sellers.add(e.sales_name);
+    });
+    var rows=Object.values(agg).sort(function(a,b){return b.bk-a.bk;});
+    var maxBK=rows.length?Math.max.apply(null,rows.map(function(r){return r.bk;})):1;
+    var tbody=document.getElementById(tbodyId); var tfoot=document.getElementById(tfootId);
+    if(tbody) tbody.innerHTML=rows.map(function(r){
+      var pct=totalBK>0?(r.bk/totalBK*100).toFixed(1)+'%':'—';
+      var bar='<div style="display:inline-block;width:'+Math.round(r.bk/maxBK*60)+'px;height:8px;background:'+color+';border-radius:4px;vertical-align:middle;margin-right:4px"></div>';
+      return '<tr><td><b>'+r.label+'</b></td><td style="text-align:center;font-weight:700;color:'+color+'">'+r.bk+'</td><td>'+bar+pct+'</td><td style="font-size:11px;color:var(--g400)">'+r.sellers.size+' คน</td></tr>';
+    }).join('') || '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--g400)">ยังไม่มีข้อมูล</td></tr>';
+    if(tfoot) tfoot.innerHTML='<td>รวม</td><td style="text-align:center;font-weight:700;color:'+color+'">'+totalBK+'</td><td>100%</td><td></td>';
+  }
+  aggTable('a-tbody-bkcar','a-tfoot-bkcar',function(e){return e.bk_car_model;},'var(--green)');
+  aggTable('a-tbody-career','a-tfoot-career',function(e){return e.bk_career;},'var(--purple)');
+
+  var MONTH_TH=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  var listEntries=bkEntries.sort(function(a,b){return b.entry_date.localeCompare(a.entry_date);});
+  var tbody3=document.getElementById('a-tbody-bklist');
+  if(tbody3) tbody3.innerHTML=listEntries.length?listEntries.map(function(e){
+    var d=new Date(e.entry_date);
+    var ds=d.getDate()+' '+MONTH_TH[d.getMonth()]+' '+(d.getFullYear()+543);
+    return '<tr><td style="font-size:11px;color:var(--g400)">'+ds+'</td><td>'+e.branch+'</td><td>'+e.sales_name+'</td><td><span style="font-size:10px;font-weight:700;background:var(--red-l);color:var(--red);padding:1px 6px;border-radius:4px">'+e.model+'</span></td><td>'+( e.bk_car_model||'-')+'</td><td>'+( e.bk_career||'-')+'</td><td style="text-align:center;font-weight:700;color:var(--green)">'+e.bk+'</td></tr>';
+  }).join(''):'<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--g400)">ยังไม่มีข้อมูล</td></tr>';
+}
+
+// ─── hook into switchArptTab ───
+var _origSwitch = switchArptTab;
+switchArptTab = function(name,el){
+  _origSwitch(name,el);
+  if(name==='bkdetail') renderAdminBKDetail();
+};
 
 // ═══════════════ TOAST ═══════════════
 var toastT;

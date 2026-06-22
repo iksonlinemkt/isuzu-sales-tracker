@@ -344,10 +344,11 @@ body{font-family:'Sarabun',sans-serif;background:#f0f4f8;color:var(--g800);font-
   <!-- Metric summary -->
   <div class="metric-row" id="r-metrics" style="grid-template-columns:repeat(4,1fr)"></div>
   <!-- Tabs: สาขา (branch) + ภาพรวม -->
-  <div style="display:flex;gap:3px;background:var(--g100);border-radius:9px;padding:4px;margin-bottom:14px;width:fit-content">
+  <div style="display:flex;gap:3px;background:var(--g100);border-radius:9px;padding:4px;margin-bottom:14px;width:fit-content;flex-wrap:wrap">
     <button class="rpt-tab active" onclick="switchRptTab('all',this)">📊 ภาพรวม</button>
     <button class="rpt-tab" onclick="switchRptTab('team',this)">👥 รายทีม</button>
     <button class="rpt-tab" onclick="switchRptTab('sales',this)">🧑 รายเซล</button>
+    <button class="rpt-tab" onclick="switchRptTab('bkdetail',this)">🚗 รุ่นจอง & อาชีพ</button>
   </div>
   <div id="rpt-panel-all" class="rpt-panel active">
     <div class="card">
@@ -371,6 +372,33 @@ body{font-family:'Sarabun',sans-serif;background:#f0f4f8;color:var(--g800);font-
       <table class="tbl"><thead><tr><th>เซล</th><th>ทีม</th><th>ตำแหน่ง</th><th>รุ่น</th><th>Lead</th><th>PS</th><th>BK</th><th>Lead→PS</th><th>อัตราส่วน</th><th>PS→BK</th><th>อัตราส่วน</th></tr></thead>
       <tbody id="r-tbody-sales"></tbody>
       <tfoot><tr id="r-tfoot-sales"></tr></tfoot></table>
+    </div>
+  </div>
+  <div id="rpt-panel-bkdetail" class="rpt-panel">
+    <div class="grid2" style="margin-bottom:0">
+      <div class="card" style="margin-bottom:0">
+        <div class="card-hd"><div class="card-title">🚗 สรุปรุ่นรถที่จอง (BK)</div><div class="card-sub" id="r-bkcar-sub">—</div></div>
+        <table class="tbl">
+          <thead><tr><th>รุ่นรถ</th><th style="text-align:center">BK</th><th style="text-align:center">%</th><th>เซล</th></tr></thead>
+          <tbody id="r-tbody-bkcar"></tbody>
+          <tfoot><tr id="r-tfoot-bkcar"></tr></tfoot>
+        </table>
+      </div>
+      <div class="card" style="margin-bottom:0">
+        <div class="card-hd"><div class="card-title">👤 สรุปอาชีพลูกค้า (BK)</div><div class="card-sub" id="r-career-sub">—</div></div>
+        <table class="tbl">
+          <thead><tr><th>อาชีพ</th><th style="text-align:center">BK</th><th style="text-align:center">%</th><th>เซล</th></tr></thead>
+          <tbody id="r-tbody-career"></tbody>
+          <tfoot><tr id="r-tfoot-career"></tr></tfoot>
+        </table>
+      </div>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <div class="card-hd"><div class="card-title">📋 รายการ BK ทั้งหมด</div></div>
+      <table class="tbl">
+        <thead><tr><th>วันที่</th><th>เซล</th><th>รุ่น</th><th>รุ่นรถที่จอง</th><th>อาชีพ</th><th style="text-align:center">BK</th></tr></thead>
+        <tbody id="r-tbody-bklist"></tbody>
+      </table>
     </div>
   </div>
 </div>
@@ -422,6 +450,8 @@ var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 var SALES_LIST = [];
 var MODELS_LIST = ['P-UP','MU-X'];
 var CAR_MODELS = [];
+var CAR_MODELS_PUP = [];
+var CAR_MODELS_MUX = [];
 var CAREERS = [];
 var ENTRY_CACHE = {}; // key: "day|salesName|model"
 var COST_PERIODS = [];
@@ -491,6 +521,8 @@ async function loadAll() {
     if (sets) sets.forEach(function(r) {
       if (r.key==='sales_list' && r.branch===BRANCH) SALES_LIST = r.value||[];
       if (r.key==='models') CAR_MODELS = r.value||[];
+      if (r.key==='models_pup') CAR_MODELS_PUP = r.value||[];
+      if (r.key==='models_mux') CAR_MODELS_MUX = r.value||[];
       if (r.key==='careers') CAREERS = r.value||[];
     });
 
@@ -514,7 +546,9 @@ async function loadAll() {
     setOnline(false);
     // Fallback demo
     if (!SALES_LIST.length) SALES_LIST = [{name:'ประยูร เครือญัญา',team:'ทีม A'},{name:'สุดารัก เกศธิญัณน์',team:'ทีม A'},{name:'สถิตย์ หอมเจือม',team:'ทีม B'}];
-    if (!CAR_MODELS.length) CAR_MODELS = ['P-UP','MU-X','D-MAX 4WD'];
+    if (!CAR_MODELS.length) CAR_MODELS = ['D-MAX','MU-X'];
+    if (!CAR_MODELS_PUP.length) CAR_MODELS_PUP = ['Cab4 HR','Cab4 NR','SPC HR','SPC NR','STD'];
+    if (!CAR_MODELS_MUX.length) CAR_MODELS_MUX = ['Active','Elegant','Ultimate','RS'];
     if (!CAREERS.length) CAREERS = ['เกษตรกร','รับราชการ','พนักงานบริษัท','ธุรกิจส่วนตัว'];
     renderAll();
   }
@@ -650,7 +684,10 @@ function buildPersonCard(person) {
       +'<div class="bk-detail'+(bkV>0?' show':'')+'" id="bk-'+nk+'-'+m+'">'
       +'<div class="bk-detail-title">📋 รายละเอียดการจอง (BK)</div>'
       +'<div class="bk-fields">'
-      +'<div><span class="bk-lbl">รุ่นรถที่จอง</span><select class="bk-sel" id="bkcar-'+nk+'-'+m+'">'+CAR_MODELS.map(function(c){return '<option'+(rec.bk_car_model===c?' selected':'')+'>'+c+'</option>';}).join('')+'</select></div>'
+      +(function(){
+        var carList = (m==='P-UP') ? CAR_MODELS_PUP : (m==='MU-X') ? CAR_MODELS_MUX : CAR_MODELS;
+        return '<div><span class="bk-lbl">รุ่นรถที่จอง ('+(m)+')</span><select class="bk-sel" id="bkcar-'+nk+'-'+m+'"><option value="">-- เลือกรุ่น --</option>'+carList.map(function(c){return '<option'+(rec.bk_car_model===c?' selected':'')+'>'+c+'</option>';}).join('')+'</select></div>';
+      })()
       +'<div><span class="bk-lbl">อาชีพลูกค้า</span><select class="bk-sel" id="bkcar2-'+nk+'-'+m+'">'+CAREERS.map(function(c){return '<option'+(rec.bk_career===c?' selected':'')+'>'+c+'</option>';}).join('')+'</select></div>'
       +'</div></div>'
       +'<button class="save-btn'+(hasSaved?' saved':'')+'" id="savebtn-'+nk+'-'+m+'" onclick="saveEntry(\''+person.name+'\',\''+m+'\')">'
@@ -790,6 +827,70 @@ function renderReport() {
 
   // ── TAB: รายเซล ──
   renderBranchSalesTable('r-tbody-sales','r-tfoot-sales',entries);
+
+  // ── TAB: รุ่นจอง & อาชีพ ──
+  renderBKDetail(entries, mf);
+}
+
+function renderBKDetail(entries, mf) {
+  // filter only entries with bk > 0 and bk details
+  var bkEntries = ALL_ENTRIES.filter(function(e){
+    return (!mf||e.entry_date.startsWith(mf)) && e.bk>0 && (e.bk_car_model||e.bk_career);
+  });
+  var totalBK = bkEntries.reduce(function(s,e){return s+(e.bk||0);},0);
+
+  // sub label
+  var sub1 = document.getElementById('r-bkcar-sub');
+  var sub2 = document.getElementById('r-career-sub');
+  if(sub1) sub1.textContent = 'BK รวม '+totalBK+' คัน';
+  if(sub2) sub2.textContent = 'BK รวม '+totalBK+' คัน';
+
+  // ── รุ่นรถ ──
+  var byCar = {};
+  bkEntries.forEach(function(e){
+    var k = e.bk_car_model||'ไม่ระบุ';
+    if(!byCar[k]) byCar[k]={label:k,bk:0,sellers:new Set()};
+    byCar[k].bk += e.bk||0;
+    byCar[k].sellers.add(e.sales_name);
+  });
+  var carRows = Object.values(byCar).sort(function(a,b){return b.bk-a.bk;});
+  var tbody1 = document.getElementById('r-tbody-bkcar');
+  var tfoot1 = document.getElementById('r-tfoot-bkcar');
+  if(tbody1) tbody1.innerHTML = carRows.map(function(r){
+    var pct = totalBK>0?(r.bk/totalBK*100).toFixed(1)+'%':'—';
+    var bar = '<div style="display:inline-block;width:'+Math.round(r.bk/Math.max(...carRows.map(function(x){return x.bk;}))*60)+'px;height:8px;background:var(--green);border-radius:4px;vertical-align:middle;margin-right:4px"></div>';
+    return '<tr><td><b>'+r.label+'</b></td><td style="text-align:center" class="num-g">'+r.bk+'</td><td style="text-align:center">'+bar+pct+'</td><td style="font-size:11px;color:var(--g400)">'+r.sellers.size+' คน</td></tr>';
+  }).join('') || '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--g400)">ยังไม่มีข้อมูล</td></tr>';
+  if(tfoot1) tfoot1.innerHTML = '<td>รวม</td><td style="text-align:center" class="num-g">'+totalBK+'</td><td style="text-align:center">100%</td><td></td>';
+
+  // ── อาชีพ ──
+  var byCareer = {};
+  bkEntries.forEach(function(e){
+    var k = e.bk_career||'ไม่ระบุ';
+    if(!byCareer[k]) byCareer[k]={label:k,bk:0,sellers:new Set()};
+    byCareer[k].bk += e.bk||0;
+    byCareer[k].sellers.add(e.sales_name);
+  });
+  var careerRows = Object.values(byCareer).sort(function(a,b){return b.bk-a.bk;});
+  var tbody2 = document.getElementById('r-tbody-career');
+  var tfoot2 = document.getElementById('r-tfoot-career');
+  if(tbody2) tbody2.innerHTML = careerRows.map(function(r){
+    var pct = totalBK>0?(r.bk/totalBK*100).toFixed(1)+'%':'—';
+    var bar = '<div style="display:inline-block;width:'+Math.round(r.bk/Math.max(...careerRows.map(function(x){return x.bk;}))*60)+'px;height:8px;background:var(--purple);border-radius:4px;vertical-align:middle;margin-right:4px"></div>';
+    return '<tr><td><b>'+r.label+'</b></td><td style="text-align:center" class="num-p">'+r.bk+'</td><td style="text-align:center">'+bar+pct+'</td><td style="font-size:11px;color:var(--g400)">'+r.sellers.size+' คน</td></tr>';
+  }).join('') || '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--g400)">ยังไม่มีข้อมูล<br><span style="font-size:11px">💡 กรอก dropdown รุ่นรถ/อาชีพ ตอนคีย์ BK</span></td></tr>';
+  if(tfoot2) tfoot2.innerHTML = '<td>รวม</td><td style="text-align:center" class="num-p">'+totalBK+'</td><td style="text-align:center">100%</td><td></td>';
+
+  // ── รายการ BK ทั้งหมด ──
+  var MONTH_TH = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  var tbody3 = document.getElementById('r-tbody-bklist');
+  var listEntries = ALL_ENTRIES.filter(function(e){ return (!mf||e.entry_date.startsWith(mf)) && e.bk>0; })
+    .sort(function(a,b){return b.entry_date.localeCompare(a.entry_date);});
+  if(tbody3) tbody3.innerHTML = listEntries.length ? listEntries.map(function(e){
+    var d = new Date(e.entry_date);
+    var dateStr = d.getDate()+' '+MONTH_TH[d.getMonth()]+' '+(d.getFullYear()+543);
+    return '<tr><td style="font-size:11px;color:var(--g400)">'+dateStr+'</td><td>'+e.sales_name+'</td><td><span style="font-size:10px;font-weight:700;background:var(--red-l);color:var(--red);padding:1px 6px;border-radius:4px">'+e.model+'</span></td><td>'+( e.bk_car_model||'-')+'</td><td>'+( e.bk_career||'-')+'</td><td style="text-align:center" class="num-g">'+e.bk+'</td></tr>';
+  }).join('') : '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--g400)">ยังไม่มีข้อมูล BK</td></tr>';
 }
 
 function renderAggTable(tbodyId, tfootId, rows, labelKey, showMembers) {
