@@ -656,7 +656,7 @@ async function loadAll() {
     // โหลด entries ย้อนหลัง 12 เดือน (รองรับข้อมูลเก่า)
     var pastDate = new Date(CURR_YEAR, CURR_MONTH-11, 1);
     var dateStart = pastDate.getFullYear()+'-'+String(pastDate.getMonth()+1).padStart(2,'0')+'-01';
-    var dateEnd = CURR_YEAR+'-'+String(CURR_MONTH+1).padStart(2,'0')+'-31';
+    var dateEnd = CURR_YEAR+'-'+String(CURR_MONTH+1).padStart(2,'0')+'-'+String(new Date(CURR_YEAR,CURR_MONTH+1,0).getDate()).padStart(2,'0');
     var {data: entries} = await sb.from('entries').select('*').eq('branch', BRANCH).gte('entry_date', dateStart).lte('entry_date', dateEnd);
     ALL_ENTRIES = entries||[];
     rebuildEntryCache();
