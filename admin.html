@@ -793,8 +793,21 @@ function toggleHmapDetail() {
   if (!wrap) return;
   var show = wrap.style.display === 'none';
   wrap.style.display = show ? 'block' : 'none';
-  btn.textContent   = show ? '▲ ย่อ' : '▼ ขยาย';
-  if (show) renderHmapDetail();
+  if(btn) btn.textContent = show ? '▲ ย่อ' : '▼ ขยาย';
+  if (show) {
+    if(!ALL_ENTRIES_FULL.length && sb) {
+      var body=document.getElementById('hmap-detail-body');
+      if(body) body.innerHTML='<div style="text-align:center;padding:20px;color:var(--g400)">⏳ กำลังโหลดข้อมูล...</div>';
+      // โหลด ALL_ENTRIES_FULL ก่อนแล้วค่อย render
+      var pastDate=new Date(CURR_YEAR,CURR_MONTH-11,1);
+      var fs=pastDate.getFullYear()+'-'+String(pastDate.getMonth()+1).padStart(2,'0')+'-01';
+      var fe=CURR_YEAR+'-'+String(CURR_MONTH+1).padStart(2,'0')+'-31';
+      sb.from('entries').select('*').gte('entry_date',fs).lte('entry_date',fe)
+        .then(function(r){ ALL_ENTRIES_FULL=r.data||[]; renderHmapDetail(); });
+    } else {
+      renderHmapDetail();
+    }
+  }
 }
 
 function renderHmapDetail() {
@@ -860,8 +873,9 @@ function renderHmapDetail() {
 
           if (isToday) { cls='hc-today'; }
           else if (!isFuture) {
+            var dStr = yr+'-'+String(mo+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
             var dayEntries = entries.filter(function(e){
-              return e.branch===branch && e.sales_name===person.name && new Date(e.entry_date).getDate()===d;
+              return e.branch===branch && e.sales_name===person.name && e.entry_date===dStr;
             });
             var sumL = dayEntries.reduce(function(s,e){return s+(e.lead||0);},0);
             var sumP = dayEntries.reduce(function(s,e){return s+(e.ps||0);},0);
@@ -1078,7 +1092,7 @@ function calcAllCost() {
   }
 
   // สรุปรวม
-  var m=calcMetrics(ALL_ENTRIES);
+  var m=calcMetrics(ALL_ENTRIES_FULL);
   var sumEl=document.getElementById('cost-summary-cards');
   if(sumEl) sumEl.innerHTML=[
     ['ต้นทุน / Lead','var(--blue)',grandTotal>0&&m.lead>0?'฿'+(grandTotal/m.lead).toFixed(0):'฿—'],
@@ -1089,7 +1103,7 @@ function calcAllCost() {
       +'<div style="font-size:10px;font-weight:700;color:'+r[1]+';text-transform:uppercase;letter-spacing:.4px">'+r[0]+'</div>'
       +'<div style="font-size:24px;font-weight:800;color:'+r[1]+';margin-top:4px">'+r[2]+'</div></div>';
   }).join('');
-  renderConv('cost-conv',m);
+  renderConv('cost-conv',calcMetrics(ALL_ENTRIES_FULL));
 }
 
 async function saveCostPeriods() {

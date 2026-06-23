@@ -646,7 +646,7 @@ async function loadAll() {
     // โหลด entries ย้อนหลัง 12 เดือน (รองรับข้อมูลเก่า)
     var pastDate = new Date(CURR_YEAR, CURR_MONTH-11, 1);
     var dateStart = pastDate.getFullYear()+'-'+String(pastDate.getMonth()+1).padStart(2,'0')+'-01';
-    var dateEnd = CURR_YEAR+'-'+String(CURR_MONTH+1).padStart(2,'0')+'-'+String(DAYS_IN).padStart(2,'0');
+    var dateEnd = CURR_YEAR+'-'+String(CURR_MONTH+1).padStart(2,'0')+'-31';
     var {data: entries} = await sb.from('entries').select('*').eq('branch', BRANCH).gte('entry_date', dateStart).lte('entry_date', dateEnd);
     ALL_ENTRIES = entries||[];
     rebuildEntryCache();
@@ -702,13 +702,16 @@ function subscribeRealtime() {
 }
 
 function renderAll() {
+  // populate entry month select ถ้ายังว่าง
+  var sel = document.getElementById('entry-month-sel');
+  if(sel && sel.options.length === 0) populateEntryMonthSelect();
   loadDashboard();
   renderEntryPage();
   renderReport();
   renderCost();
   renderAlerts();
-  // sync local var ชื่อสาขาบน topbar
-  document.getElementById('sb-branch-name').textContent = 'สาขา' + BRANCH;
+  var sbEl = document.getElementById('sb-branch-name');
+  if(sbEl) sbEl.textContent = 'สาขา' + BRANCH;
 }
 
 // ═══════════ DASHBOARD ═══════════
@@ -846,17 +849,19 @@ function renderPersonGrid() {
     setTimeout(function(){ if(!SALES_LIST.length) loadAll(); }, 2000);
     return;
   }
-  // populate filter dropdown
+  // populate filter dropdown — restore ค่าเดิมถ้ายังมีอยู่
   var sfSel = document.getElementById('sf-sales');
   if(sfSel) {
-    var curVal = sfSel.value;
-    sfSel.innerHTML = '<option value="ALL">ทุกคน ('+ SALES_LIST.length +' คน)</option>';
+    var curVal = sfSel.value||'ALL';
+    sfSel.innerHTML = '<option value="ALL">ทุกคน (' + SALES_LIST.length + ' คน)</option>';
     SALES_LIST.forEach(function(p){
       var opt = document.createElement('option');
-      opt.value = p.name; opt.textContent = p.name + ' — ' + p.team;
+      opt.value = p.name;
+      opt.textContent = p.name + (p.team ? ' — ' + p.team : '');
       sfSel.appendChild(opt);
     });
-    sfSel.value = curVal; // คงค่าเดิม
+    var exists = SALES_LIST.some(function(p){ return p.name===curVal; });
+    sfSel.value = exists ? curVal : 'ALL';
   }
   filterPersonGrid();
 }
