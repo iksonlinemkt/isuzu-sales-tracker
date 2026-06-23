@@ -858,10 +858,10 @@ function renderHmapDetail() {
 
   ['บางเสาธง','ศรีนครินทร์','บางนา'].forEach(function(branch) {
     var salesList = (SETTINGS[branch] || {}).sales_list || [];
-    // ถ้า settings ว่าง → ดึงชื่อเซลจาก entries ที่มีอยู่
+    // ถ้า settings ว่าง → ดึงชื่อเซลจาก ALL_ENTRIES_FULL (ทุกเดือน ไม่ filter)
     if (!salesList.length) {
       var seen = {};
-      entries.filter(function(e){ return e.branch===branch; }).forEach(function(e){
+      ALL_ENTRIES_FULL.filter(function(e){ return e.branch===branch; }).forEach(function(e){
         if(e.sales_name && !seen[e.sales_name]) seen[e.sales_name] = e.team||'';
       });
       salesList = Object.keys(seen).map(function(n){ return {name:n, team:seen[n]}; });
