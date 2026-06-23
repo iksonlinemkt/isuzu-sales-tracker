@@ -808,7 +808,13 @@ function renderHeatmaps() {
     var el = document.getElementById('hmap-'+br);
     if(!el) return;
     var salesList = (SETTINGS[br]||{}).sales_list || [];
-    buildHeatmap(el, salesList.map(function(s){return s.name;}), function(name,d){ (function(){ var dStr=br+name+d; var yr2=CURR_YEAR,mo2=CURR_MONTH; var ds=yr2+'-'+String(mo2+1).padStart(2,'0')+'-'+String(d).padStart(2,'0'); return ALL_ENTRIES_FULL.filter(function(e){return e.branch===br&&e.sales_name===name&&e.entry_date===ds;}); })(); }, 'sales');
+    var mf2 = document.getElementById('f-month')?.value || '';
+    var yr2 = CURR_YEAR, mo2 = CURR_MONTH;
+    if(mf2){ var p2=mf2.split('-'); yr2=parseInt(p2[0]); mo2=parseInt(p2[1])-1; }
+    buildHeatmap(el, salesList.map(function(s){return s.name;}), function(name,d){
+      var ds=yr2+'-'+String(mo2+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+      return ALL_ENTRIES_FULL.filter(function(e){return e.branch===br&&e.sales_name===name&&e.entry_date===ds;});
+    }, 'sales');
   });
 }
 function toggleHmapDetail() {

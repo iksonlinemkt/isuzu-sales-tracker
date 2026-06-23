@@ -853,7 +853,11 @@ function renderPersonGrid() {
   var grid = document.getElementById('person-grid'); if (!grid) return;
   if (!SALES_LIST.length) {
     grid.innerHTML = '<div style="text-align:center;padding:40px;color:var(--g400);font-size:14px;grid-column:1/-1">⏳ กำลังโหลดรายชื่อเซล...<br><span style="font-size:12px;margin-top:8px;display:block">ถ้ารอนานให้รีเฟรชหน้า หรือตรวจสอบ Supabase URL</span></div>';
-    setTimeout(function(){ if(!SALES_LIST.length) loadAll(); }, 2000);
+    setTimeout(function(){
+      if(!SALES_LIST.length) {
+        loadAll().then(function(){ if(SALES_LIST.length) renderPersonGrid(); });
+      }
+    }, 2000);
     return;
   }
   // populate filter dropdown — restore ค่าเดิมถ้ายังมีอยู่
