@@ -525,16 +525,23 @@ body{font-family:'Sarabun',sans-serif;background:#f0f4f8;color:var(--g800);font-
 </nav>
 
 <script>
+
+function renderConv(elId, m) {
+  var el = document.getElementById(elId); if (!el) return;
+  el.innerHTML = [
+    ['Lead → PS', m.lpRate, m.lpRatio, m.ps, m.lead, 'Lead', 'var(--purple)'],
+    ['PS → BK', m.pbRate, m.pbRatio, m.bk, m.ps, 'PS', 'var(--green)'],
+    ['Lead → BK (overall)', m.lbRate, m.lbRatio, m.bk, m.lead, 'Lead', 'var(--red)'],
+  ].map(function(r){
+    return '<div><div class="conv-row-top"><span class="conv-lbl">'+r[0]+'</span><div class="conv-right"><span class="conv-pct" style="color:'+r[6]+'">'+r[1]+'%</span><span class="conv-ratio" style="color:'+r[6]+'">'+r[2]+'</span></div></div><div class="conv-bar-track"><div class="conv-bar-fill" style="width:'+Math.min(r[1],100)+'%;background:'+r[6]+'"></div></div><div class="conv-detail">'+r[3].toLocaleString()+' จาก '+r[4].toLocaleString()+' '+r[5]+'</div></div>';
+  }).join('');
+}
+
 // ═══════════ CONFIG ═══════════
 var SUPABASE_URL = 'https://hcenlsbilqrtdstobigc.supabase.co';
 var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhjZW5sc2JpbHFydGRzdG9iaWdjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3NTQ1NDYsImV4cCI6MjA5NzMzMDU0Nn0.9ZgkBJzCbT9RuDOr1vRkbhVH0jgEIVDwE_f9HarGI3Q';
 var BRANCH = new URLSearchParams(window.location.search).get('branch') || 'บางเสาธง';
 var sb = null;
-try {
-  if (window.supabase) {
-    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  }
-} catch(e) { console.error('Supabase init error:', e); }
 
 // ═══════════ STATE ═══════════
 var SALES_LIST = [];
@@ -566,12 +573,15 @@ window.addEventListener('load', function() {
   populateEntryMonthSelect();
   updateClock();
   setInterval(updateClock, 60000);
-  // init supabase ถ้ายังไม่ได้ทำ
-  if (!sb && window.supabase) {
-    try { sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch(e) {}
+  function initSb() {
+    if (!window.supabase) { setTimeout(initSb, 200); return; }
+    if (!sb) {
+      try { sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY); }
+      catch(e) { console.error('Supabase error:', e); }
+    }
+    loadAll();
   }
-  loadAll();
-  subscribeRealtime();
+  initSb();
   window.addEventListener('online', function(){ setOnline(true); });
   window.addEventListener('offline', function(){ setOnline(false); });
 });
@@ -688,6 +698,7 @@ function rebuildEntryCache() {
 }
 
 function subscribeRealtime() {
+  if(!sb) return;
   sb.channel('branch-'+BRANCH)
     .on('postgres_changes', {event:'*', schema:'public', table:'entries', filter:'branch=eq.'+BRANCH}, function(payload) {
       var row = payload.new||payload.old;
@@ -721,15 +732,19 @@ function loadDashboard() {
   var entries = filterEntries(ALL_ENTRIES, mf, modF);
   var m = calcMetrics(entries);
 
-  document.getElementById('dash-sub').textContent = 'สาขา'+BRANCH+' · ยอดรวมประจำเดือน';
-  document.getElementById('dash-metrics').innerHTML =
+  var dashSub = document.getElementById('dash-sub');
+  if(dashSub) dashSub.textContent = 'สาขา'+BRANCH+' · ยอดรวมประจำเดือน';
+  var dashMetrics = document.getElementById('dash-metrics');
+  if(dashMetrics) dashMetrics.innerHTML =
     mc('blue','👥','Lead',m.lead.toLocaleString(),'') +
     mc('green','🤝','PS',m.ps.toLocaleString(),'') +
     mc('purple','📋','BK',m.bk.toLocaleString(),'') +
     mc('red','🎯','Lead→BK',m.lbRate+'%','อัตราส่วน '+m.lbRatio);
 
   renderConv('dash-conv', m);
-  renderSalesTable(document.getElementById('dash-tbody'), document.getElementById('dash-tfoot'), entries);
+  var dt = document.getElementById('dash-tbody');
+  var df = document.getElementById('dash-tfoot');
+  if(dt) renderSalesTable(dt, df, entries);
   renderHeatmap('dash-heatmap', 'branch');
   buildChart(entries);
 }
@@ -791,15 +806,7 @@ function changeEntryMonth() {
   renderEntryPage();
 }
 
-function rebuildEntryCache() {
-  ENTRY_CACHE = {};
-  var viewKey = VIEW_YEAR+'-'+String(VIEW_MONTH+1).padStart(2,'0');
-  ALL_ENTRIES.forEach(function(e){
-    if(!e.entry_date.startsWith(viewKey)) return;
-    var day = new Date(e.entry_date).getDate();
-    ENTRY_CACHE[day+'|'+e.sales_name+'|'+e.model] = e;
-  });
-}
+
 
 function renderEntryPage() {
   DAYS_IN = new Date(VIEW_YEAR, VIEW_MONTH+1, 0).getDate();
@@ -1302,16 +1309,6 @@ function calcMetrics(entries) {
   return {lead,ps,bk,lpRate,pbRate,lbRate,lpRatio,pbRatio,lbRatio};
 }
 
-function renderConv(elId, m) {
-  var el = document.getElementById(elId); if (!el) return;
-  el.innerHTML = [
-    ['Lead → PS', m.lpRate, m.lpRatio, m.ps, m.lead, 'Lead', 'var(--purple)'],
-    ['PS → BK', m.pbRate, m.pbRatio, m.bk, m.ps, 'PS', 'var(--green)'],
-    ['Lead → BK (overall)', m.lbRate, m.lbRatio, m.bk, m.lead, 'Lead', 'var(--red)'],
-  ].map(function(r){
-    return '<div><div class="conv-row-top"><span class="conv-lbl">'+r[0]+'</span><div class="conv-right"><span class="conv-pct" style="color:'+r[6]+'">'+r[1]+'%</span><span class="conv-ratio" style="color:'+r[6]+'">'+r[2]+'</span></div></div><div class="conv-bar-track"><div class="conv-bar-fill" style="width:'+Math.min(r[1],100)+'%;background:'+r[6]+'"></div></div><div class="conv-detail">'+r[3].toLocaleString()+' จาก '+r[4].toLocaleString()+' '+r[5]+'</div></div>';
-  }).join('');
-}
 
 // ═══════════ NAVIGATION ═══════════
 function showPage(name, el) {

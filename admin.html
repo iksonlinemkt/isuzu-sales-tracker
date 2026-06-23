@@ -570,6 +570,40 @@ body{font-family:'Sarabun',sans-serif;background:#f0f4f8;color:var(--g800);font-
 <div class="toast" id="toast"></div>
 
 <script>
+
+// ═══════════ HELPER FUNCTIONS ═══════════
+function renderConv(elId, m) {
+  var el = document.getElementById(elId); if (!el) return;
+  el.innerHTML = [
+    ['Lead → PS', m.lpRate, m.lpRatio, m.ps, m.lead, 'Lead', 'var(--purple)'],
+    ['PS → BK',   m.pbRate, m.pbRatio, m.bk, m.ps,   'PS',   'var(--green)'],
+    ['Lead → BK (overall)', m.lbRate, m.lbRatio, m.bk, m.lead, 'Lead', 'var(--red)'],
+  ].map(function(r){
+    return '<div><div class="conv-row-top"><span class="conv-lbl">'+r[0]+'</span>'
+      +'<div class="conv-right"><span class="conv-pct" style="color:'+r[6]+'">'+r[1]+'%</span>'
+      +'<span class="conv-ratio" style="color:'+r[6]+'">'+r[2]+'</span></div></div>'
+      +'<div class="conv-bar-track"><div class="conv-bar-fill" style="width:'+Math.min(r[1],100)+'%;background:'+r[6]+'"></div></div>'
+      +'<div class="conv-detail">'+String(r[3]).toLocaleString()+' จาก '+String(r[4]).toLocaleString()+' '+r[5]+'</div></div>';
+  }).join('');
+}
+
+function metricCard(cls, icon, lbl, val, sub) {
+  return '<div class="mc '+cls+'"><div class="mc-icon '+cls+'">'+icon+'</div>'
+    +'<div class="mc-lbl">'+lbl+'</div><div class="mc-val">'+val+'</div>'
+    +'<div class="mc-sub">'+sub+'</div></div>';
+}
+
+function calcMetrics(entries) {
+  var lead=0,ps=0,bk=0;
+  (entries||[]).forEach(function(e){lead+=e.lead||0;ps+=e.ps||0;bk+=e.bk||0;});
+  var lpRate=lead>0?(ps/lead*100).toFixed(1):0;
+  var pbRate=ps>0?(bk/ps*100).toFixed(1):0;
+  var lbRate=lead>0?(bk/lead*100).toFixed(1):0;
+  var lpRatio=ps>0?'1:'+(lead/ps).toFixed(1):'—';
+  var pbRatio=bk>0?'1:'+(ps/bk).toFixed(1):'—';
+  var lbRatio=bk>0?'1:'+(lead/bk).toFixed(1):'—';
+  return {lead,ps,bk,lpRate,pbRate,lbRate,lpRatio,pbRatio,lbRatio};
+}
 // ═══════════════ STATE ═══════════════
 var ADMIN_PASSWORD = 'admin1234';
 var sb = null;
@@ -699,17 +733,7 @@ function getEntries(branch) {
   if(branch==='ALL') return ALL_ENTRIES;
   return ALL_ENTRIES.filter(function(e){ return e.branch===branch; });
 }
-function calcMetrics(entries) {
-  var lead=0,ps=0,bk=0;
-  entries.forEach(function(e){ lead+=e.lead||0; ps+=e.ps||0; bk+=e.bk||0; });
-  var lpRate = lead>0?(ps/lead*100).toFixed(1):0;
-  var pbRate = ps>0?(bk/ps*100).toFixed(1):0;
-  var lbRate = lead>0?(bk/lead*100).toFixed(1):0;
-  var lpRatio = ps>0?'1 : '+(lead/ps).toFixed(1):'—';
-  var pbRatio = bk>0?'1 : '+(ps/bk).toFixed(1):'—';
-  var lbRatio = bk>0?'1 : '+(lead/bk).toFixed(1):'—';
-  return {lead,ps,bk,lpRate,pbRate,lbRate,lpRatio,pbRatio,lbRatio};
-}
+
 function renderBranchSection(br) {
   var entries = getEntries(br);
   var m = calcMetrics(entries);
@@ -728,9 +752,7 @@ function renderBranchSection(br) {
     if(tbody) renderSalesTable(tbody, entries, br);
   }
 }
-function metricCard(cls,icon,lbl,val,sub) {
-  return '<div class="mc '+cls+'"><div class="mc-icon '+cls+'">'+icon+'</div><div class="mc-lbl">'+lbl+'</div><div class="mc-val">'+val+'</div><div class="mc-sub">'+sub+'</div></div>';
-}
+
 function convItem(lbl,pct,ratio,num,den,unit,color) {
   return '<div class="conv-item"><div class="conv-row-top"><span class="conv-lbl">'+lbl+'</span><div class="conv-right"><span class="conv-pct" style="color:'+color+'">'+pct+'%</span><span class="conv-ratio" style="color:'+color+'">'+ratio+'</span></div></div><div class="conv-bar-track"><div class="conv-bar-fill" style="width:'+Math.min(pct,100)+'%;background:'+color+'"></div></div><div class="conv-detail">'+num.toLocaleString()+' จาก '+den.toLocaleString()+' '+unit+'</div></div>';
 }
@@ -776,15 +798,17 @@ function renderBranchSummaryTable() {
   tbody.innerHTML = rows.join('') + '<tr style="background:var(--g100);font-weight:700"><td>รวม</td><td class="num-b">'+totals.lead.toLocaleString()+'</td><td class="num-p">'+totals.ps.toLocaleString()+'</td><td class="num-g">'+totals.bk.toLocaleString()+'</td><td class="num-p">'+totals.lpRate+'%</td><td style="color:var(--g400);font-size:11px">'+totals.lpRatio+'</td><td class="num-g">'+totals.pbRate+'%</td><td style="color:var(--g400);font-size:11px">'+totals.pbRatio+'</td><td class="num-r">'+(totals.lead+totals.ps+totals.bk).toLocaleString()+'</td></tr>';
 }
 function renderHeatmaps() {
+  var mf = document.getElementById('f-month')?.value||(CURR_YEAR+'-'+String(CURR_MONTH+1).padStart(2,'0'));
+  var parts = mf.split('-'); var yr=parseInt(parts[0]); var mo=parseInt(parts[1])-1;
   // ALL heatmap by branch
   var elAll = document.getElementById('hmap-ALL');
-  if(elAll) buildHeatmap(elAll, BRANCHES, function(br,d){ return ALL_ENTRIES.filter(function(e){ return e.branch===br && new Date(e.entry_date).getDate()===d; }); }, 'branch');
+  if(elAll) buildHeatmap(elAll, BRANCHES, function(br,d){ var ds=yr+'-'+String(mo+1).padStart(2,'0')+'-'+String(d).padStart(2,'0'); return ALL_ENTRIES_FULL.filter(function(e){return e.branch===br&&e.entry_date===ds;}); }, 'branch');
   // Per-branch by sales
   BRANCHES.forEach(function(br) {
     var el = document.getElementById('hmap-'+br);
     if(!el) return;
     var salesList = (SETTINGS[br]||{}).sales_list || [];
-    buildHeatmap(el, salesList.map(function(s){return s.name;}), function(name,d){ return ALL_ENTRIES.filter(function(e){ return e.branch===br && e.sales_name===name && new Date(e.entry_date).getDate()===d; }); }, 'sales');
+    buildHeatmap(el, salesList.map(function(s){return s.name;}), function(name,d){ (function(){ var dStr=br+name+d; var yr2=CURR_YEAR,mo2=CURR_MONTH; var ds=yr2+'-'+String(mo2+1).padStart(2,'0')+'-'+String(d).padStart(2,'0'); return ALL_ENTRIES_FULL.filter(function(e){return e.branch===br&&e.sales_name===name&&e.entry_date===ds;}); })(); }, 'sales');
   });
 }
 function toggleHmapDetail() {
@@ -1472,29 +1496,6 @@ function switchArptTab(name,el) {
   if(name==='bkdetail') renderAdminBKDetail();
 }
 
-function renderReport() {
-  var bf=document.getElementById('r-branch')?.value||'ALL';
-  var mf=document.getElementById('r-month')?.value||'';
-  var modF=document.getElementById('r-model')?.value||'ALL';
-  var entries=ALL_ENTRIES.filter(function(e){
-    return (bf==='ALL'||e.branch===bf)&&(!mf||e.entry_date.startsWith(mf))&&(modF==='ALL'||e.model===modF);
-  });
-  var m=calcMetrics(entries);
-  var mEl=document.getElementById('rpt-metrics');
-  if(mEl) mEl.innerHTML=metricCard('blue','👥','Lead',m.lead.toLocaleString(),'')+metricCard('green','🤝','PS',m.ps.toLocaleString(),'')+metricCard('purple','📋','BK',m.bk.toLocaleString(),'')+metricCard('red','🎯','Lead→BK',m.lbRate+'%','อัตราส่วน '+m.lbRatio);
-  var byBranch={};
-  entries.forEach(function(e){ var k=e.branch; if(!byBranch[k]) byBranch[k]={label:k,lead:0,ps:0,bk:0}; byBranch[k].lead+=e.lead||0; byBranch[k].ps+=e.ps||0; byBranch[k].bk+=e.bk||0; });
-  renderAdminAggTable('rpt-tbody-branch','rpt-tfoot-branch',Object.values(byBranch),false);
-  var byTeam={};
-  entries.forEach(function(e){ var k=(e.branch||'')+':'+(e.team||'ไม่ระบุ'); if(!byTeam[k]) byTeam[k]={branch:e.branch||'',label:e.team||'ไม่ระบุ',lead:0,ps:0,bk:0,members:new Set()}; byTeam[k].lead+=e.lead||0; byTeam[k].ps+=e.ps||0; byTeam[k].bk+=e.bk||0; byTeam[k].members.add(e.sales_name); });
-  renderAdminAggTable('rpt-tbody-team','rpt-tfoot-team',Object.values(byTeam),true);
-  var bySales={};
-  entries.forEach(function(e){ var k=e.branch+':'+e.sales_name+':'+e.model; var p=(SETTINGS[e.branch]||{}).sales_list?.find(function(s){return s.name===e.sales_name;})||{}; if(!bySales[k]) bySales[k]={branch:e.branch,team:e.team||'',name:e.sales_name,position:p.position||'SC',model:e.model,lead:0,ps:0,bk:0}; bySales[k].lead+=e.lead||0; bySales[k].ps+=e.ps||0; bySales[k].bk+=e.bk||0; });
-  renderAdminSalesTable('rpt-tbody-sales','rpt-tfoot-sales',Object.values(bySales).sort(function(a,b){return a.branch.localeCompare(b.branch)||(a.team||'').localeCompare(b.team||'')||a.name.localeCompare(b.name);}));
-  var byModel={};
-  entries.forEach(function(e){ var k=e.model||'?'; if(!byModel[k]) byModel[k]={label:k,lead:0,ps:0,bk:0}; byModel[k].lead+=e.lead||0; byModel[k].ps+=e.ps||0; byModel[k].bk+=e.bk||0; });
-  renderAdminAggTable('rpt-tbody-model','rpt-tfoot-model',Object.values(byModel),false);
-}
 
 function renderAdminAggTable(tbodyId,tfootId,rows,showBranch) {
   var tbody=document.getElementById(tbodyId); if(!tbody) return;
@@ -1585,6 +1586,174 @@ async function delTag(type,idx) {
   renderTags(type);
   if(type==='models_pup') CAR_MODELS_PUP=SETTINGS['ALL'][type]||[];
   if(type==='models_mux') CAR_MODELS_MUX=SETTINGS['ALL'][type]||[];
+}
+
+
+// ═══════════ IMPORT SALES (page-import) ═══════════
+var importData = [];
+
+function handleFileDrop(e) {
+  e.preventDefault();
+  var dz=document.getElementById('drop-zone');
+  if(dz){dz.style.borderColor='var(--g200)';dz.style.background='#fff';}
+  if(e.dataTransfer.files[0]) processFile(e.dataTransfer.files[0]);
+}
+function handleFileSelect(input) { if(input.files[0]) processFile(input.files[0]); }
+
+async function processFile(file) {
+  var btn=document.getElementById('import-btn');
+  var disp=document.getElementById('file-name-display');
+  if(disp) disp.textContent='📄 '+file.name+' ('+(file.size/1024).toFixed(1)+' KB)';
+  if(btn) btn.textContent='⏳ กำลังอ่านไฟล์...';
+  try {
+    if(file.name.endsWith('.csv')) await parseCSV(file);
+    else await parseXLSXSales(file);
+  } catch(e) {
+    showImportResult('error','อ่านไฟล์ไม่ได้: '+e.message);
+    if(btn) btn.textContent='นำเข้าข้อมูล';
+  }
+}
+
+async function parseCSV(file) {
+  var text=await file.text();
+  var lines=text.split('\n').filter(function(l){return l.trim();});
+  if(!lines.length) return;
+  var headers=lines[0].split(',').map(function(h){return h.trim().replace(/^"|"$/g,'').replace(/\s*\*\s*/g,'').trim();});
+  var rows=[];
+  for(var i=1;i<lines.length;i++){
+    var vals=lines[i].split(',').map(function(v){return v.trim().replace(/^"|"$/g,'');});
+    if(!vals[0]) continue;
+    var obj={}; headers.forEach(function(h,idx){obj[h]=vals[idx]||'';}); rows.push(obj);
+  }
+  importData=normalizeSalesRows(rows); showPreview();
+}
+
+async function parseXLSXSales(file) {
+  if(!window.XLSX) await ihLoadScript('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js');
+  var buf=await file.arrayBuffer();
+  var wb=window.XLSX.read(buf,{type:'array'});
+  var allRows=[];
+  wb.SheetNames.forEach(function(sn){
+    if(sn==='คำแนะนำ') return;
+    var ws=wb.Sheets[sn];
+    var raw=window.XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
+    if(!raw.length) return;
+    var hdrIdx=-1;
+    for(var i=0;i<Math.min(raw.length,5);i++){
+      var c0=String(raw[i][0]||'');
+      if(c0.indexOf('ชื่อ')>=0||c0.toLowerCase().indexOf('name')>=0){hdrIdx=i;break;}
+    }
+    if(hdrIdx<0) return;
+    var headers=raw[hdrIdx].map(function(h){return String(h||'').replace(/\s*\*\s*/g,'').trim();});
+    for(var r=hdrIdx+1;r<raw.length;r++){
+      var nv=String(raw[r][0]||'').trim(); var bv=String(raw[r][1]||'').trim();
+      if(!nv||!bv||nv.indexOf('📋')>=0) continue;
+      var obj={}; headers.forEach(function(h,ci){if(h) obj[h]=String(raw[r][ci]||'').trim();}); allRows.push(obj);
+    }
+  });
+  if(!allRows.length){showImportResult('error','ไม่พบข้อมูล');return;}
+  importData=normalizeSalesRows(allRows); showPreview();
+}
+
+function normalizeSalesRows(rows) {
+  function cleanKey(k){return String(k||'').replace(/\s*\*\s*/g,'').trim();}
+  function getVal(obj,targets){
+    var cm={}; for(var k in obj){cm[cleanKey(k)]=obj[k];}
+    for(var i=0;i<targets.length;i++){
+      var t=cleanKey(targets[i]);
+      if(cm[t]!==undefined&&cm[t]!=='') return String(cm[t]).trim();
+      for(var ck in cm){if(ck.indexOf(t)>=0||t.indexOf(ck)>=0){if(cm[ck]!==undefined&&cm[ck]!=='') return String(cm[ck]).trim();}}
+    }
+    return '';
+  }
+  return rows.filter(function(r){return getVal(r,['ชื่อ-นามสกุล','name']).length>0;})
+    .map(function(r){return{name:getVal(r,['ชื่อ-นามสกุล','name']),branch:getVal(r,['สาขา','branch']),team:getVal(r,['ทีม','team'])||'ทีม A',position:getVal(r,['ตำแหน่ง','position'])||'SC',phone:getVal(r,['เบอร์โทร','phone'])};})
+    .filter(function(r){return r.name&&r.branch;});
+}
+
+function showPreview() {
+  var btn=document.getElementById('import-btn');
+  var btn2=document.getElementById('confirm-import-btn');
+  if(!importData.length){showImportResult('error','ไม่พบข้อมูลที่ถูกต้อง');if(btn)btn.textContent='นำเข้าข้อมูล';return;}
+  var pc=document.getElementById('preview-card'); if(pc) pc.style.display='block';
+  var pcount=document.getElementById('preview-count'); if(pcount) pcount.textContent=importData.length+' รายการ';
+  var psub=document.getElementById('preview-sub'); if(psub) psub.textContent='ตรวจสอบก่อนนำเข้า';
+  var thead=document.getElementById('preview-thead');
+  var tbody=document.getElementById('preview-tbody');
+  if(thead) thead.innerHTML=['#','ชื่อ-นามสกุล','สาขา','ทีม','ตำแหน่ง','เบอร์โทร','สถานะ'].map(function(h){return'<th>'+h+'</th>';}).join('');
+  if(tbody) tbody.innerHTML=importData.slice(0,20).map(function(r,i){
+    var ok=r.name&&r.branch;
+    return'<tr><td style="color:var(--g400)">'+(i+1)+'</td><td><b>'+r.name+'</b></td><td>'+r.branch+'</td><td>'+r.team+'</td><td>'+r.position+'</td><td style="color:var(--g400)">'+r.phone+'</td><td><span style="font-size:10px;background:'+(ok?'var(--green-l)':'var(--red-l)')+';color:'+(ok?'var(--green)':'var(--red)')+';padding:2px 7px;border-radius:20px;font-weight:700">'+(ok?'✓ พร้อม':'⚠ ไม่ครบ')+'</span></td></tr>';
+  }).join('');
+  if(btn){btn.textContent='✅ นำเข้า '+importData.length+' รายการ';btn.style.background='var(--red)';btn.style.color='#fff';btn.style.cursor='pointer';btn.disabled=false;}
+  if(btn2){btn2.disabled=false;btn2.textContent='✅ ยืนยันนำเข้า';}
+}
+
+async function doImport() {
+  if(!importData.length){showToast('ไม่มีข้อมูล');return;}
+  var btn=document.getElementById('import-btn'); var btn2=document.getElementById('confirm-import-btn');
+  if(btn){btn.textContent='⏳ กำลังนำเข้า...';btn.disabled=true;}
+  if(btn2){btn2.textContent='⏳...';btn2.disabled=true;}
+  var byBranch={};
+  importData.forEach(function(r){if(!byBranch[r.branch])byBranch[r.branch]=[];byBranch[r.branch].push({name:r.name,team:r.team,position:r.position,phone:r.phone});});
+  var errors=[],success=0;
+  for(var branch in byBranch){
+    try{
+      if(!SETTINGS[branch])SETTINGS[branch]={};
+      var existing=SETTINGS[branch].sales_list||[];
+      var newList=existing.slice();
+      byBranch[branch].forEach(function(p){var idx=newList.findIndex(function(s){return s.name===p.name;});if(idx>=0)newList[idx]=Object.assign(newList[idx],p);else newList.push(p);success++;});
+      SETTINGS[branch].sales_list=newList;
+      if(sb) await sb.from('settings').upsert({branch:branch,key:'sales_list',value:newList},{onConflict:'branch,key'});
+    }catch(e){errors.push(branch+': '+e.message);}
+  }
+  var msg='✅ นำเข้าสำเร็จ '+success+' รายการ จาก '+Object.keys(byBranch).length+' สาขา';
+  if(errors.length) msg+=' | ⚠️ '+errors[0];
+  showImportResult(errors.length?'warn':'success',msg);
+  renderSettings();
+  importData=[];
+  var pc=document.getElementById('preview-card'); if(pc) pc.style.display='none';
+  var disp=document.getElementById('file-name-display'); if(disp) disp.textContent='';
+  var fi=document.getElementById('file-input'); if(fi) fi.value='';
+  if(btn){btn.textContent='นำเข้าข้อมูล';btn.disabled=true;btn.style.background='var(--g200)';btn.style.color='var(--g400)';}
+  if(btn2){btn2.textContent='✅ ยืนยันนำเข้า';btn2.disabled=false;}
+  showToast('✅ นำเข้าเสร็จแล้ว!');
+}
+
+function showImportResult(type,msg) {
+  var colors={success:['var(--green-l)','var(--green)'],error:['var(--red-l)','var(--red)'],warn:['var(--amber-l)','var(--amber)']};
+  var c=colors[type]||colors.success;
+  var el=document.getElementById('import-result'); if(!el) return;
+  el.style.display='block';
+  el.innerHTML='<div style="background:'+c[0]+';border:1px solid '+c[1]+';border-radius:9px;padding:12px 16px;font-size:13px;font-weight:600;color:'+c[1]+'">'+msg+'</div>';
+}
+
+async function loadCurrentSales() {
+  var wrap=document.getElementById('current-sales-wrap'); if(!wrap) return;
+  wrap.innerHTML='<div style="text-align:center;padding:10px;color:var(--g400)">⏳ กำลังโหลด...</div>';
+  var html='';
+  ['บางเสาธง','ศรีนครินทร์','บางนา'].forEach(function(br){
+    var list=(SETTINGS[br]||{}).sales_list||[];
+    html+='<div style="margin-bottom:14px"><div style="font-size:12px;font-weight:700;color:var(--g800);margin-bottom:6px;padding:6px 11px;background:var(--g50);border-radius:6px">🏢 สาขา'+br+' ('+list.length+' คน)</div>';
+    if(!list.length){html+='<div style="padding:6px 11px;color:var(--g400);font-size:12px">ยังไม่มีรายชื่อ</div>';}
+    else{
+      html+='<table class="tbl"><thead><tr><th>#</th><th>ชื่อ-นามสกุล</th><th>ทีม</th><th>ตำแหน่ง</th><th>เบอร์โทร</th><th></th></tr></thead><tbody>';
+      list.forEach(function(p,i){
+        html+='<tr><td style="color:var(--g400)">'+(i+1)+'</td><td><b>'+p.name+'</b></td><td>'+p.team+'</td><td><span style="font-size:10px;background:var(--g100);padding:1px 6px;border-radius:4px">'+(p.position||'SC')+'</span></td><td style="color:var(--g400)">'+(p.phone||'—')+'</td><td><button onclick="deleteSalesDirect(\''+br+'\',\''+p.name+'\')" style="background:none;border:none;color:var(--g400);cursor:pointer">✕</button></td></tr>';
+      });
+      html+='</tbody></table>';
+    }
+    html+='</div>';
+  });
+  wrap.innerHTML=html||'<div style="text-align:center;padding:20px;color:var(--g400)">ยังไม่มีข้อมูล</div>';
+}
+
+async function deleteSalesDirect(branch,name) {
+  if(!confirm('ลบ '+name+' ?')) return;
+  if(!SETTINGS[branch]) return;
+  SETTINGS[branch].sales_list=(SETTINGS[branch].sales_list||[]).filter(function(s){return s.name!==name;});
+  if(sb) await sb.from('settings').upsert({branch:branch,key:'sales_list',value:SETTINGS[branch].sales_list},{onConflict:'branch,key'});
+  loadCurrentSales(); showToast('✅ ลบ '+name+' แล้ว');
 }
 
 </script>
