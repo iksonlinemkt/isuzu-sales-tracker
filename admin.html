@@ -578,6 +578,7 @@ var SETTINGS = {};
 var CAR_MODELS_PUP = [];
 var CAR_MODELS_MUX = [];
 var ALL_ENTRIES = [];
+var ALL_ENTRIES_FULL = []; // ทุกเดือน สำหรับ cost/heatmap
 var currentBranchTab = 'ALL';
 var MONTH_TH = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
 var NOW = new Date();
@@ -640,18 +641,18 @@ async function loadAll() {
       if(r.key==='models_pup') CAR_MODELS_PUP = r.value||[];
       if(r.key==='models_mux') CAR_MODELS_MUX = r.value||[];
     });
+    // โหลด entries ทั้งหมดย้อนหลัง 12 เดือน สำหรับ cost/heatmap
+    var pastDate = new Date(CURR_YEAR, CURR_MONTH-11, 1);
+    var fullStart = pastDate.getFullYear()+'-'+String(pastDate.getMonth()+1).padStart(2,'0')+'-01';
+    var fullEnd = CURR_YEAR+'-'+String(CURR_MONTH+1).padStart(2,'0')+'-31';
+    var {data: fullData} = await sb.from('entries').select('*').gte('entry_date',fullStart).lte('entry_date',fullEnd);
+    ALL_ENTRIES_FULL = fullData||[];
     await loadDashboard();
     subscribeRealtime();
     document.getElementById('rtdot').classList.remove('off');
   } catch(e) { loadDemoData(); }
 }
 async function loadDashboard() {
-  // ถ้า heatmap detail เปิดอยู่ ให้ re-render
-  var hmapWrap = document.getElementById('hmap-detail-wrap');
-  if (hmapWrap && hmapWrap.style.display !== 'none') {
-    setTimeout(renderHmapDetail, 300);
-  }
-
   if (!sb) return;
   var mf = document.getElementById('f-month')?.value || (CURR_YEAR+'-'+String(CURR_MONTH+1).padStart(2,'0'));
   var [yr,mo] = mf.split('-').map(Number);
@@ -671,7 +672,17 @@ async function loadDashboard() {
 }
 function subscribeRealtime() {
   if(!sb) return;
-  sb.channel('all-entries').on('postgres_changes',{event:'*',schema:'public',table:'entries'},function(){
+  sb.channel('all-entries').on('postgres_changes',{event:'*',schema:'public',table:'entries'},function(payload){
+    // update ALL_ENTRIES_FULL
+    var row = payload.new||payload.old;
+    if(row){
+      if(payload.eventType==='DELETE'){
+        ALL_ENTRIES_FULL=ALL_ENTRIES_FULL.filter(function(e){return e.id!==row.id;});
+      } else {
+        var idx=ALL_ENTRIES_FULL.findIndex(function(e){return e.id===row.id;});
+        if(idx>=0) ALL_ENTRIES_FULL[idx]=row; else ALL_ENTRIES_FULL.push(row);
+      }
+    }
     loadDashboard();
     showToast('🔄 ข้อมูลอัปเดตแล้ว (realtime)');
   }).subscribe();
@@ -791,7 +802,7 @@ function renderHmapDetail() {
   var mf = document.getElementById('f-month')?.value || '';
 
   // กรอง entries ตามเดือน
-  var entries = mf ? ALL_ENTRIES.filter(function(e){ return e.entry_date.startsWith(mf); }) : ALL_ENTRIES;
+  var entries = mf ? ALL_ENTRIES_FULL.filter(function(e){ return e.entry_date.startsWith(mf); }) : ALL_ENTRIES_FULL;
 
   // คำนวณ days ในเดือน
   var yr = CURR_YEAR, mo = CURR_MONTH;
@@ -1019,7 +1030,7 @@ function calcAllCost() {
       var bk = BKEYS[bi];
       var cost = parseFloat(document.getElementById('p'+i+'-fb-'+bk)?.value)||0;
       periodTotal += cost;
-      var brEnt = ALL_ENTRIES.filter(function(e){ return e.branch===br && e.entry_date>=start && e.entry_date<=end; });
+      var brEnt = ALL_ENTRIES_FULL.filter(function(e){ return e.branch===br && e.entry_date>=start && e.entry_date<=end; });
       var lead = brEnt.reduce(function(s,e){return s+(e.lead||0);},0)||1;
       var el = document.getElementById('p'+i+'-cpl-'+bk);
       if(el) el.textContent = cost>0 ? '฿'+(cost/lead).toFixed(0) : '฿—';
@@ -1027,7 +1038,7 @@ function calcAllCost() {
     grandTotal += periodTotal;
 
     // รวมช่วง
-    var pEnt  = ALL_ENTRIES.filter(function(e){return e.entry_date>=start && e.entry_date<=end;});
+    var pEnt  = ALL_ENTRIES_FULL.filter(function(e){return e.entry_date>=start && e.entry_date<=end;});
     var pL = pEnt.reduce(function(s,e){return s+(e.lead||0);},0)||1;
     var pP = pEnt.reduce(function(s,e){return s+(e.ps||0);},0)||1;
     var pB = pEnt.reduce(function(s,e){return s+(e.bk||0);},0)||1;
@@ -1046,7 +1057,7 @@ function calcAllCost() {
       var bk=BKEYS[bi];
       var brTotal=0;
       periods.forEach(function(i){ brTotal+=parseFloat(document.getElementById('p'+i+'-fb-'+bk)?.value)||0; });
-      var brEnt=ALL_ENTRIES.filter(function(e){return e.branch===br;});
+      var brEnt=ALL_ENTRIES_FULL.filter(function(e){return e.branch===br;});
       var m=calcMetrics(brEnt);
       return '<div style="background:#fff;border:1px solid var(--g200);border-radius:11px;overflow:hidden">'
         +'<div style="background:var(--navy);color:#fff;padding:9px 14px;font-size:12px;font-weight:700">📍 สาขา'+br+'</div>'
