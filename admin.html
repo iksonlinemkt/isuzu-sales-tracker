@@ -1297,7 +1297,13 @@ async function ihProcessFile(file) {
       allEntries=allEntries.concat(entries);
       sheetResults.push({sheet:sn,year:parsed.year,month:parsed.month,count:entries.length,status:'ok'});
     }
-    IH_DATA=allEntries;
+    // Deduplicate ก่อน — ถ้า key เดียวกันให้เอาอันหลังสุด
+    var dedupMap = {};
+    allEntries.forEach(function(e) {
+      var k = e.branch+'|'+e.sales_name+'|'+e.model+'|'+e.entry_date;
+      dedupMap[k] = e; // override ด้วยอันหลัง
+    });
+    IH_DATA = Object.values(dedupMap);
     ihSetProgress(false);
     ihShowPreview(sheetResults);
   } catch(err) {
