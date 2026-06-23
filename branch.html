@@ -349,9 +349,17 @@ body{font-family:'Sarabun',sans-serif;background:#f0f4f8;color:var(--g800);font-
 <div class="page" id="page-entry">
   <div class="page-hd"><div class="page-title">บันทึกประจำวัน</div><div class="page-sub">เลือกวันที่ แล้วกรอก Lead / PS / BK</div></div>
 
-  <!-- Day tabs -->
+  <!-- Day tabs + Month selector -->
   <div class="day-tabs-card">
-    <div class="day-tabs-lbl">เลือกวันที่บันทึก — <span id="entry-month-lbl">—</span></div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap">
+      <span class="day-tabs-lbl" style="margin-bottom:0">เลือกเดือน</span>
+      <select id="entry-month-sel" class="fsel"
+        style="border:1.5px solid var(--g200);border-radius:7px;padding:5px 10px;font-size:13px;font-family:'Sarabun',sans-serif;color:var(--g800);background:#fff;outline:none;cursor:pointer"
+        onchange="changeEntryMonth()">
+      </select>
+      <span style="font-size:11px;color:var(--g400)" id="entry-month-lbl"></span>
+    </div>
+    <div class="day-tabs-lbl" style="margin-bottom:6px">เลือกวันที่บันทึก</div>
     <div class="day-tabs" id="day-tabs"></div>
   </div>
 
@@ -544,6 +552,9 @@ var TODAY = NOW.getDate();
 var CURR_MONTH = NOW.getMonth();
 var CURR_YEAR = NOW.getFullYear();
 var DAYS_IN = new Date(CURR_YEAR, CURR_MONTH+1, 0).getDate();
+// เดือนที่กำลังดูอยู่ (เปลี่ยนได้)
+var VIEW_YEAR  = CURR_YEAR;
+var VIEW_MONTH = CURR_MONTH; // 0-indexed
 var DAY_NAMES = ['อา','จ','อ','พ','พฤ','ศ','ส'];
 var MONTH_TH = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
 var chartInstance = null;
@@ -552,6 +563,7 @@ var chartInstance = null;
 window.addEventListener('load', function() {
   updateBranchUI();
   populateMonthSelects();
+  populateEntryMonthSelect();
   updateClock();
   setInterval(updateClock, 60000);
   // init supabase ถ้ายังไม่ได้ทำ
@@ -637,13 +649,7 @@ async function loadAll() {
     var dateEnd = CURR_YEAR+'-'+String(CURR_MONTH+1).padStart(2,'0')+'-'+String(DAYS_IN).padStart(2,'0');
     var {data: entries} = await sb.from('entries').select('*').eq('branch', BRANCH).gte('entry_date', dateStart).lte('entry_date', dateEnd);
     ALL_ENTRIES = entries||[];
-    ENTRY_CACHE = {};
-    // rebuild cache เฉพาะเดือนที่ดูอยู่
     rebuildEntryCache();
-    ALL_ENTRIES.forEach(function(e) {
-      var day = new Date(e.entry_date).getDate();
-      ENTRY_CACHE[day+'|'+e.sales_name+'|'+e.model] = e;
-    });
 
     // Cost periods from admin
     var {data: costs} = await sb.from('promo_costs').select('*').eq('branch', BRANCH);
@@ -673,10 +679,9 @@ async function loadAll() {
 
 function rebuildEntryCache() {
   ENTRY_CACHE = {};
-  var viewMonth = document.getElementById('view-month')?.value ||
-    (CURR_YEAR+'-'+String(CURR_MONTH+1).padStart(2,'0'));
+  var viewKey = VIEW_YEAR+'-'+String(VIEW_MONTH+1).padStart(2,'0');
   ALL_ENTRIES.forEach(function(e) {
-    if (!e.entry_date.startsWith(viewMonth)) return;
+    if (!e.entry_date.startsWith(viewKey)) return;
     var day = new Date(e.entry_date).getDate();
     ENTRY_CACHE[day+'|'+e.sales_name+'|'+e.model] = e;
   });
@@ -749,15 +754,57 @@ function buildChart(entries) {
 }
 
 // ═══════════ ENTRY PAGE ═══════════
+function populateEntryMonthSelect() {
+  var sel = document.getElementById('entry-month-sel'); if(!sel) return;
+  sel.innerHTML = '';
+  for(var i=0; i<12; i++){
+    var d = new Date(CURR_YEAR, CURR_MONTH-i, 1);
+    var val = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+    var opt = document.createElement('option');
+    opt.value = val;
+    opt.textContent = MONTH_TH[d.getMonth()]+' '+(d.getFullYear()+543);
+    if(i===0) opt.selected = true;
+    sel.appendChild(opt);
+  }
+}
+
+function changeEntryMonth() {
+  var sel = document.getElementById('entry-month-sel');
+  if(!sel || !sel.value) return;
+  var parts = sel.value.split('-');
+  VIEW_YEAR  = parseInt(parts[0]);
+  VIEW_MONTH = parseInt(parts[1]) - 1; // 0-indexed
+  DAYS_IN = new Date(VIEW_YEAR, VIEW_MONTH+1, 0).getDate();
+
+  // ถ้าเป็นเดือนปัจจุบัน → selectedDay = TODAY, ถ้าเดือนอื่น → selectedDay = 1
+  if(VIEW_YEAR===CURR_YEAR && VIEW_MONTH===CURR_MONTH){
+    selectedDay = TODAY;
+  } else {
+    selectedDay = 1;
+  }
+
+  // rebuild entry cache สำหรับเดือนใหม่
+  rebuildEntryCache();
+  renderEntryPage();
+}
+
+function rebuildEntryCache() {
+  ENTRY_CACHE = {};
+  var viewKey = VIEW_YEAR+'-'+String(VIEW_MONTH+1).padStart(2,'0');
+  ALL_ENTRIES.forEach(function(e){
+    if(!e.entry_date.startsWith(viewKey)) return;
+    var day = new Date(e.entry_date).getDate();
+    ENTRY_CACHE[day+'|'+e.sales_name+'|'+e.model] = e;
+  });
+}
+
 function renderEntryPage() {
-  var viewMonth = document.getElementById('view-month')?.value || (CURR_YEAR+'-'+String(CURR_MONTH+1).padStart(2,'0'));
-  var vmParts = viewMonth.split('-');
-  var vmYr = parseInt(vmParts[0]); var vmMo = parseInt(vmParts[1])-1;
-  var monthLabel = MONTH_TH[vmMo] + ' ' + (vmYr+543);
-  document.getElementById('entry-month-lbl').textContent = monthLabel;
-  document.getElementById('entry-hmap-month').textContent = monthLabel;
-  // อัปเดต DAYS_IN
-  DAYS_IN = new Date(vmYr, vmMo+1, 0).getDate();
+  DAYS_IN = new Date(VIEW_YEAR, VIEW_MONTH+1, 0).getDate();
+  var monthLabel = MONTH_TH[VIEW_MONTH] + ' ' + (VIEW_YEAR+543);
+  var lbl = document.getElementById('entry-month-lbl');
+  if(lbl) lbl.textContent = monthLabel;
+  var hmapLbl = document.getElementById('entry-hmap-month');
+  if(hmapLbl) hmapLbl.textContent = monthLabel;
   buildDayTabs();
   renderHeatmap('entry-heatmap', 'sales');
   renderPersonGrid();
@@ -767,9 +814,11 @@ function renderEntryPage() {
 function buildDayTabs() {
   var wrap = document.getElementById('day-tabs'); if (!wrap) return;
   wrap.innerHTML = '';
+  var isCurrentMonth = (VIEW_YEAR===CURR_YEAR && VIEW_MONTH===CURR_MONTH);
   for (var d=1; d<=DAYS_IN; d++) {
-    var dt = new Date(CURR_YEAR, CURR_MONTH, d);
-    var isToday = d===TODAY, isFuture = d>TODAY;
+    var dt = new Date(VIEW_YEAR, VIEW_MONTH, d);
+    var isToday = isCurrentMonth && d===TODAY;
+    var isFuture = isCurrentMonth && d>TODAY;
     var hasFull = SALES_LIST.length>0 && SALES_LIST.every(function(s){
       return MODELS_LIST.every(function(m){ var k=d+'|'+s.name+'|'+m; var r=ENTRY_CACHE[k]; return r&&(r.lead||r.ps||r.bk); });
     });
@@ -897,9 +946,7 @@ async function saveEntry(salesName, model) {
   if (btn) { btn.textContent='⏳ กำลังบันทึก...'; btn.className='save-btn saving'; btn.disabled=true; }
 
   // ใช้ selectedDay (วันที่เลือกจาก tab) ไม่ใช่ TODAY
-  var viewMonth = document.getElementById('view-month')?.value || (CURR_YEAR+'-'+String(CURR_MONTH+1).padStart(2,'0'));
-  var vmParts2 = viewMonth.split('-');
-  var dateStr = vmParts2[0]+'-'+vmParts2[1]+'-'+String(selectedDay).padStart(2,'0');
+  var dateStr = VIEW_YEAR+'-'+String(VIEW_MONTH+1).padStart(2,'0')+'-'+String(selectedDay).padStart(2,'0');
   var team = (SALES_LIST.find(function(s){return s.name===salesName;})||{}).team||'';
   var payload = {branch:BRANCH, sales_name:salesName, team, model, entry_date:dateStr, lead, ps, bk, bk_car_model:bkCar, bk_career:bkCareer};
 
@@ -1206,7 +1253,8 @@ function renderHeatmap(elId, type) {
   rows.forEach(function(row) {
     html += '<tr><td class="rlbl">'+row+'</td>';
     for (var d=1; d<=DAYS_IN; d++) {
-      var isToday=d===TODAY, isFuture=d>TODAY;
+      var isCurrentMo = (VIEW_YEAR===CURR_YEAR && VIEW_MONTH===CURR_MONTH);
+      var isToday=isCurrentMo&&d===TODAY, isFuture=isCurrentMo&&d>TODAY;
       var cls='hc-future';
       if (isToday) cls='hc-today';
       else if (!isFuture) {
