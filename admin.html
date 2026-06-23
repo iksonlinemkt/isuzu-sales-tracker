@@ -214,6 +214,9 @@ body{font-family:'Sarabun',sans-serif;background:#f0f4f8;color:var(--g800);font-
   <div class="nav-item" onclick="showPage('cost',this)"><span class="nav-icon">💰</span> ต้นทุน & โปรโมท</div>
   <div class="nav-item" onclick="showPage('alert',this)"><span class="nav-icon">🔔</span> แจ้งเตือน<span class="nav-badge" id="alert-badge">0</span></div>
   <div class="nav-item" onclick="showPage('settings',this)"><span class="nav-icon">⚙️</span> ตั้งค่า</div>
+  <div class="sb-section">นำเข้าข้อมูล</div>
+  <div class="nav-item" onclick="showPage('import',this)"><span class="nav-icon">📥</span> นำเข้าเซล</div>
+  <div class="nav-item" onclick="showPage('import-history',this)"><span class="nav-icon">🕐</span> นำเข้าข้อมูลเก่า</div>
   <div class="sb-footer">
     
   </div>
@@ -254,7 +257,28 @@ body{font-family:'Sarabun',sans-serif;background:#f0f4f8;color:var(--g800);font-
     </div>
     <div style="height:12px"></div>
     <div class="card"><div class="card-hd"><div class="card-title">ยอดรวมแยกสาขา</div></div><table class="tbl"><thead><tr><th>สาขา</th><th>Lead</th><th>PS</th><th>BK</th><th>Lead→PS</th><th>อัตราส่วน</th><th>PS→BK</th><th>อัตราส่วน</th><th>รวม</th></tr></thead><tbody id="branch-summary-tbody"></tbody></table></div>
-    <div class="card"><div class="card-hd"><div class="card-title">📅 Heat map ทุกสาขา</div></div><div class="card-body"><div id="hmap-ALL"></div><div class="hlgd"><span><span class="hbox hc-full"></span>ครบถ้วน</span><span><span class="hbox hc-part"></span>บางส่วน</span><span><span class="hbox hc-none"></span>ไม่ได้คีย์</span><span><span class="hbox hc-today"></span>วันนี้</span></div></div></div>
+    <div class="card">
+      <div class="card-hd"><div class="card-title">📅 Heat map ทุกสาขา</div></div>
+      <div class="card-body">
+        <div id="hmap-ALL"></div>
+        <div class="hlgd"><span><span class="hbox hc-full"></span>ครบถ้วน</span><span><span class="hbox hc-part"></span>บางส่วน</span><span><span class="hbox hc-none"></span>ไม่ได้คีย์</span><span><span class="hbox hc-today"></span>วันนี้</span></div>
+      </div>
+    </div>
+    <!-- Heatmap รายเซล แยกสาขา → ทีม → เซล -->
+    <div class="card">
+      <div class="card-hd">
+        <div class="card-title">📅 Heat map รายเซล — แยกสาขา / ทีม / เซล</div>
+        <div style="display:flex;gap:6px">
+          <button onclick="toggleHmapDetail()" id="hmap-detail-btn"
+            style="font-size:11px;background:var(--g100);border:none;padding:4px 12px;border-radius:6px;cursor:pointer;font-family:'Sarabun',sans-serif;color:var(--g600)">
+            ▼ ขยาย
+          </button>
+        </div>
+      </div>
+      <div id="hmap-detail-wrap" style="display:none">
+        <div class="card-body" id="hmap-detail-body"></div>
+      </div>
+    </div>
   </div>
 
   <div id="btab-บางเสาธง" class="btab-panel"><div class="metric-row" id="m-บางเสาธง"></div><div class="grid32"><div class="card" style="margin-bottom:0"><div class="card-hd"><div class="card-title">กราฟยอด — บางเสาธง</div></div><div class="card-body"><div class="chart-wrap"><canvas id="chart-บางเสาธง"></canvas></div></div></div><div class="card" style="margin-bottom:0"><div class="card-hd"><div class="card-title">📈 Conversion Rate</div></div><div class="card-body"><div class="conv-list" id="conv-บางเสาธง"></div></div></div></div><div style="height:12px"></div><div class="card"><div class="card-hd"><div class="card-title">รายเซล — บางเสาธง</div></div><table class="tbl"><thead><tr><th>เซล</th><th>ทีม</th><th>รุ่น</th><th>Lead</th><th>PS</th><th>BK</th><th>Lead→PS</th><th>PS→BK</th></tr></thead><tbody id="tbody-บางเสาธง"></tbody></table></div><div class="card"><div class="card-hd"><div class="card-title">📅 Heatmap รายเซล — บางเสาธง</div></div><div class="card-body"><div id="hmap-บางเสาธง"></div><div class="hlgd"><span><span class="hbox hc-full"></span>ครบ</span><span><span class="hbox hc-part"></span>บางส่วน</span><span><span class="hbox hc-none"></span>ไม่ได้คีย์</span></div></div></div></div>
@@ -395,6 +419,76 @@ body{font-family:'Sarabun',sans-serif;background:#f0f4f8;color:var(--g800);font-
         💡 <b>วิธี deploy:</b> อัปโหลดไฟล์ทั้งหมดขึ้น <b>Netlify Drop</b> หรือ <b>GitHub Pages</b> ฟรี → ได้ link จริงทันที
       </div>
     </div></div>
+  </div>
+</div>
+
+<!-- ══ IMPORT SALES PAGE ══ -->
+<div class="page" id="page-import">
+  <div class="page-hd"><div class="page-title">นำเข้ารายชื่อเซล</div><div class="page-sub">อัปโหลดไฟล์ Excel เพื่อนำเข้าข้อมูลเซลทุกสาขาพร้อมกัน</div></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+    <!-- Download template -->
+    <div class="card" style="margin-bottom:0">
+      <div class="card-hd"><div class="card-title">📥 ดาวน์โหลด Template</div></div>
+      <div class="card-body">
+        <p style="font-size:13px;color:var(--g600);margin-bottom:12px;line-height:1.6">ดาวน์โหลด template Excel แล้วกรอกรายชื่อเซลแต่ละสาขา จากนั้นอัปโหลดกลับมาที่นี่</p>
+        <div style="background:var(--g50);border-radius:8px;padding:12px;margin-bottom:12px;font-size:12px;color:var(--g600)">
+          <div style="font-weight:700;margin-bottom:6px;color:var(--g800)">คอลัมน์ที่ต้องกรอก:</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
+            <div>✅ ชื่อ-นามสกุล <span style="color:var(--red)">(บังคับ)</span></div>
+            <div>✅ สาขา <span style="color:var(--red)">(บังคับ)</span></div>
+            <div>🔵 ทีม</div><div>🔵 ตำแหน่ง</div><div>🔵 เบอร์โทร</div>
+          </div>
+        </div>
+        <button onclick="downloadTemplate('sales')" style="display:inline-flex;align-items:center;gap:7px;background:var(--navy);color:#fff;padding:9px 18px;border-radius:8px;font-size:13px;font-weight:700;border:none;cursor:pointer;font-family:'Sarabun',sans-serif">
+          📥 ดาวน์โหลด Template Excel
+        </button>
+      </div>
+    </div>
+    <!-- Upload -->
+    <div class="card" style="margin-bottom:0">
+      <div class="card-hd"><div class="card-title">📤 อัปโหลดไฟล์</div></div>
+      <div class="card-body">
+        <div id="drop-zone" style="border:2px dashed var(--g200);border-radius:10px;padding:30px 20px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:12px"
+          onclick="document.getElementById('file-input').click()"
+          ondragover="event.preventDefault();this.style.borderColor='var(--blue)';this.style.background='var(--blue-l)'"
+          ondragleave="this.style.borderColor='var(--g200)';this.style.background='#fff'"
+          ondrop="handleFileDrop(event)">
+          <div style="font-size:32px;margin-bottom:8px">📂</div>
+          <div style="font-size:13px;font-weight:600;color:var(--g800)">คลิกหรือลากไฟล์มาวางที่นี่</div>
+          <div style="font-size:11px;color:var(--g400);margin-top:4px">รองรับ .xlsx และ .csv</div>
+        </div>
+        <input type="file" id="file-input" accept=".xlsx,.csv" style="display:none" onchange="handleFileSelect(this)">
+        <div id="file-name-display" style="font-size:12px;color:var(--g400);margin-bottom:10px;min-height:18px"></div>
+        <button id="import-btn" onclick="doImport()" disabled
+          style="width:100%;background:var(--g200);color:var(--g400);border:none;padding:10px;border-radius:8px;font-size:13px;font-weight:700;cursor:not-allowed;font-family:'Sarabun',sans-serif;transition:all .2s">
+          นำเข้าข้อมูล
+        </button>
+      </div>
+    </div>
+  </div>
+  <!-- Preview -->
+  <div class="card" id="preview-card" style="display:none">
+    <div class="card-hd">
+      <div><div class="card-title">👁️ ตัวอย่างข้อมูล (Preview)</div><div class="card-sub" id="preview-sub">—</div></div>
+      <div style="display:flex;gap:8px">
+        <span id="preview-count" style="font-size:11px;background:var(--blue-l);color:var(--blue);padding:2px 8px;border-radius:20px;font-weight:700"></span>
+        <button onclick="doImport()" id="confirm-import-btn" style="background:var(--green);color:#fff;border:none;padding:6px 16px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Sarabun',sans-serif">✅ ยืนยันนำเข้า</button>
+      </div>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="tbl" id="preview-table">
+        <thead><tr id="preview-thead"></tr></thead>
+        <tbody id="preview-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+  <!-- Result -->
+  <div id="import-result" style="display:none;margin-top:14px"></div>
+  <!-- Current sales -->
+  <div class="card" style="margin-top:14px">
+    <div class="card-hd"><div class="card-title">📋 รายชื่อเซลปัจจุบัน (Supabase)</div>
+    <button onclick="loadCurrentSales()" style="background:var(--g100);border:none;padding:5px 12px;border-radius:6px;font-size:12px;cursor:pointer;font-family:'Sarabun',sans-serif">🔄 โหลด</button></div>
+    <div id="current-sales-wrap" style="padding:14px 16px;color:var(--g400);font-size:13px;text-align:center">กด "โหลด" เพื่อดูรายชื่อเซลปัจจุบัน</div>
   </div>
 </div>
 
@@ -552,6 +646,12 @@ async function loadAll() {
   } catch(e) { loadDemoData(); }
 }
 async function loadDashboard() {
+  // ถ้า heatmap detail เปิดอยู่ ให้ re-render
+  var hmapWrap = document.getElementById('hmap-detail-wrap');
+  if (hmapWrap && hmapWrap.style.display !== 'none') {
+    setTimeout(renderHmapDetail, 300);
+  }
+
   if (!sb) return;
   var mf = document.getElementById('f-month')?.value || (CURR_YEAR+'-'+String(CURR_MONTH+1).padStart(2,'0'));
   var [yr,mo] = mf.split('-').map(Number);
@@ -676,6 +776,110 @@ function renderHeatmaps() {
     buildHeatmap(el, salesList.map(function(s){return s.name;}), function(name,d){ return ALL_ENTRIES.filter(function(e){ return e.branch===br && e.sales_name===name && new Date(e.entry_date).getDate()===d; }); }, 'sales');
   });
 }
+function toggleHmapDetail() {
+  var wrap = document.getElementById('hmap-detail-wrap');
+  var btn  = document.getElementById('hmap-detail-btn');
+  if (!wrap) return;
+  var show = wrap.style.display === 'none';
+  wrap.style.display = show ? 'block' : 'none';
+  btn.textContent   = show ? '▲ ย่อ' : '▼ ขยาย';
+  if (show) renderHmapDetail();
+}
+
+function renderHmapDetail() {
+  var body = document.getElementById('hmap-detail-body'); if (!body) return;
+  var mf = document.getElementById('f-month')?.value || '';
+
+  // กรอง entries ตามเดือน
+  var entries = mf ? ALL_ENTRIES.filter(function(e){ return e.entry_date.startsWith(mf); }) : ALL_ENTRIES;
+
+  // คำนวณ days ในเดือน
+  var yr = CURR_YEAR, mo = CURR_MONTH;
+  if (mf) { var parts = mf.split('-'); yr = parseInt(parts[0]); mo = parseInt(parts[1])-1; }
+  var daysInMo = new Date(yr, mo+1, 0).getDate();
+  var todayMo  = (yr===CURR_YEAR && mo===CURR_MONTH) ? TODAY : daysInMo;
+
+  var html = '';
+  var DAY_NAMES_S = ['อา','จ','อ','พ','พฤ','ศ','ส'];
+
+  ['บางเสาธง','ศรีนครินทร์','บางนา'].forEach(function(branch) {
+    var salesList = (SETTINGS[branch] || {}).sales_list || [];
+    if (!salesList.length) return;
+
+    // จัดกลุ่มตามทีม
+    var teamMap = {};
+    salesList.forEach(function(s) {
+      var t = s.team || 'ไม่ระบุทีม';
+      if (!teamMap[t]) teamMap[t] = [];
+      teamMap[t].push(s);
+    });
+
+    html += '<div style="margin-bottom:18px">';
+    // สาขา header
+    html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:7px 12px;background:var(--navy);border-radius:8px">'
+      + '<span style="color:#fff;font-size:13px;font-weight:700">🏢 สาขา'+branch+'</span>'
+      + '<span style="color:rgba(255,255,255,.5);font-size:11px">'+salesList.length+' คน</span></div>';
+
+    Object.keys(teamMap).sort().forEach(function(team) {
+      var members = teamMap[team];
+      // ทีม header
+      html += '<div style="margin-bottom:6px;margin-left:8px">';
+      html += '<div style="font-size:11px;font-weight:700;color:var(--g600);background:var(--g100);padding:4px 10px;border-radius:6px;margin-bottom:4px;display:inline-block">👥 '+team+'</div>';
+
+      // heatmap table
+      html += '<div style="overflow-x:auto;margin-left:4px"><table style="border-collapse:separate;border-spacing:2px;font-size:10px">';
+      // day header
+      html += '<tr><td style="min-width:130px;padding-right:8px;font-size:10px;font-weight:600;color:var(--g400)">เซล</td>';
+      for (var d=1; d<=daysInMo; d++) {
+        var dt = new Date(yr, mo, d);
+        var dn = DAY_NAMES_S[dt.getDay()];
+        var isWknd = dt.getDay()===0||dt.getDay()===6;
+        html += '<td style="text-align:center;color:'+(isWknd?'var(--red)':'var(--g400)')+';font-weight:600;padding:0 0 2px;font-size:8px;min-width:16px">'+d+'</td>';
+      }
+      html += '<td style="text-align:center;color:var(--g600);font-size:9px;font-weight:700;padding-left:4px">รวม</td></tr>';
+
+      members.forEach(function(person) {
+        var totLead=0,totPs=0,totBk=0;
+        html += '<tr><td style="font-size:11px;font-weight:600;color:var(--g800);padding-right:8px;white-space:nowrap">'+person.name+'</td>';
+
+        for (var d=1; d<=daysInMo; d++) {
+          var isToday = (yr===CURR_YEAR && mo===CURR_MONTH && d===TODAY);
+          var isFuture = (yr===CURR_YEAR && mo===CURR_MONTH && d>TODAY) || (yr*12+mo > CURR_YEAR*12+CURR_MONTH);
+          var cls = 'hc-future';
+
+          if (isToday) { cls='hc-today'; }
+          else if (!isFuture) {
+            var dayEntries = entries.filter(function(e){
+              return e.branch===branch && e.sales_name===person.name && new Date(e.entry_date).getDate()===d;
+            });
+            var sumL = dayEntries.reduce(function(s,e){return s+(e.lead||0);},0);
+            var sumP = dayEntries.reduce(function(s,e){return s+(e.ps||0);},0);
+            var sumB = dayEntries.reduce(function(s,e){return s+(e.bk||0);},0);
+            totLead+=sumL; totPs+=sumP; totBk+=sumB;
+            var tot = sumL+sumP+sumB;
+            cls = tot>0 ? (dayEntries.every(function(e){return (e.lead||0)+(e.ps||0)+(e.bk||0)>0;}) ? 'hc-full' : 'hc-part') : 'hc-none';
+          }
+
+          var tip = person.name+' วัน'+d;
+          html += '<td><span class="hcell '+cls+'" title="'+tip+'" style="width:16px;height:16px;border-radius:3px;display:block;cursor:default"></span></td>';
+        }
+
+        // รวม
+        html += '<td style="padding-left:4px;text-align:right">'
+          +'<div style="font-size:9px;color:var(--blue);font-weight:700">L:'+totLead+'</div>'
+          +'<div style="font-size:9px;color:var(--purple);font-weight:700">P:'+totPs+'</div>'
+          +'<div style="font-size:9px;color:var(--green);font-weight:700">B:'+totBk+'</div>'
+          +'</td>';
+        html += '</tr>';
+      });
+      html += '</table></div></div>';
+    });
+    html += '</div>';
+  });
+
+  body.innerHTML = html || '<div style="text-align:center;padding:20px;color:var(--g400)">ยังไม่มีข้อมูล</div>';
+}
+
 function buildHeatmap(el, rows, getEntriesFn, type) {
   var html = '<div class="hmap-wrap"><table class="hmap-table"><tr><td class="rlbl"></td>';
   for(var d=1;d<=DAYS_IN;d++) html+='<td class="dhd">'+d+'</td>';
@@ -960,7 +1164,9 @@ async function delTag(type,idx) {
 function showPage(name,el) {
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
   document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});
-  document.getElementById('page-'+name).classList.add('active');
+  var pageEl = document.getElementById('page-'+name);
+  if(!pageEl){ console.warn('showPage: page not found:', name); return; }
+  pageEl.classList.add('active');
   if(el) el.classList.add('active');
   if(name==='report') renderReport();
   if(name==='cost') genPeriods();
