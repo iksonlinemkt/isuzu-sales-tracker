@@ -200,6 +200,53 @@ body{font-family:'Sarabun',sans-serif;background:#f0f4f8;color:var(--g800);font-
 /* ── TOAST ── */
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(70px);background:var(--g800);color:#fff;padding:10px 22px;border-radius:20px;font-size:13px;font-weight:500;z-index:9999;transition:transform .25s;pointer-events:none;white-space:nowrap}
 .toast.show{transform:translateX(-50%) translateY(0)}
+
+/* ── FILTER BAR ── */
+.sales-filter-bar{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--g200);border-radius:10px;padding:9px 14px;margin-bottom:12px;flex-wrap:wrap}
+.sf-label{font-size:11px;font-weight:700;color:var(--g600);text-transform:uppercase;letter-spacing:.3px}
+.sf-sel{border:1.5px solid var(--g200);border-radius:7px;padding:6px 10px;font-size:13px;font-family:'Sarabun',sans-serif;color:var(--g800);background:#fff;outline:none;cursor:pointer;min-width:160px}
+.sf-sel:focus{border-color:var(--navy)}
+.sf-clear{background:var(--g100);border:none;color:var(--g600);font-size:12px;padding:5px 12px;border-radius:7px;cursor:pointer;font-family:'Sarabun',sans-serif}
+.sf-clear:hover{background:var(--g200)}
+
+/* ── RESPONSIVE MOBILE ── */
+@media(max-width:768px){
+  :root{--sidebar:0px}
+  .sidebar{display:none}
+  .topbar{left:0}
+  .main{margin-left:0;padding:12px 10px 80px}
+  .offline-banner{left:0}
+  .metric-row{grid-template-columns:repeat(2,1fr);gap:8px}
+  .sum-row{grid-template-columns:repeat(2,1fr);gap:8px}
+  .sum-val{font-size:28px}
+  .person-grid{grid-template-columns:1fr}
+  .grid2,.grid32{grid-template-columns:1fr}
+  .day-tabs .dtab .dnum{font-size:11px}
+  .day-tabs .dtab .dname{font-size:8px}
+  .dtab{min-width:30px;padding:3px 6px}
+  .fields-row{gap:5px}
+  .field-inp{font-size:24px;padding:10px 4px}
+  .save-btn{padding:12px;font-size:15px}
+  .pcard-name{font-size:15px}
+  .bk-fields{grid-template-columns:1fr}
+  .hmap-table .rlbl{min-width:80px;font-size:10px}
+  .hcell{width:12px;height:12px}
+  .rpt-tab,.arpt-tab{padding:5px 10px;font-size:11px}
+  .tbl{font-size:11px}
+  .tbl th,.tbl td{padding:6px 8px}
+  .conv-pct{font-size:12px}
+  .conv-ratio{font-size:10px}
+}
+
+/* Mobile: ซ่อน sidebar และแสดง bottom nav แทน */
+@media(max-width:768px){
+  .mobile-bottom-nav{display:flex}
+}
+.mobile-bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--navy);border-top:1px solid rgba(255,255,255,.1);z-index:200;padding:6px 0}
+.mbn-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 4px;color:rgba(255,255,255,.55);font-size:9px;font-weight:600;cursor:pointer;border:none;background:none;font-family:'Sarabun',sans-serif;transition:all .15s}
+.mbn-item.active,.mbn-item:hover{color:#fff}
+.mbn-icon{font-size:20px;line-height:1}
+
 .rpt-tab{padding:6px 16px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;color:var(--g400);border:none;background:none;font-family:'Sarabun',sans-serif;transition:all .15s}
 .rpt-tab.active{background:#fff;color:var(--navy);box-shadow:0 1px 4px rgba(0,0,0,.1)}
 .rpt-panel{display:none}.rpt-panel.active{display:block}
@@ -324,6 +371,16 @@ body{font-family:'Sarabun',sans-serif;background:#f0f4f8;color:var(--g800);font-
     </div>
   </div>
 
+  <!-- Filter เซล -->
+  <div class="sales-filter-bar">
+    <span class="sf-label">เลือกเซล</span>
+    <select class="sf-sel" id="sf-sales" onchange="filterPersonGrid()">
+      <option value="ALL">ทุกคน</option>
+    </select>
+    <button class="sf-clear" onclick="clearSalesFilter()">✕ ดูทั้งหมด</button>
+    <span style="font-size:11px;color:var(--g400);margin-left:auto" id="sf-count"></span>
+  </div>
+
   <!-- Person cards -->
   <div class="person-grid" id="person-grid"></div>
 </div>
@@ -438,6 +495,25 @@ body{font-family:'Sarabun',sans-serif;background:#f0f4f8;color:var(--g800);font-
 
 </main>
 <div class="toast" id="toast"></div>
+
+<!-- Mobile Bottom Nav -->
+<nav class="mobile-bottom-nav" id="mobile-nav">
+  <button class="mbn-item active" onclick="showPage('dashboard',this)" id="mbn-dashboard">
+    <span class="mbn-icon">📊</span><span>แดชบอร์ด</span>
+  </button>
+  <button class="mbn-item" onclick="showPage('entry',this)" id="mbn-entry">
+    <span class="mbn-icon">✏️</span><span>บันทึก</span>
+  </button>
+  <button class="mbn-item" onclick="showPage('report',this)" id="mbn-report">
+    <span class="mbn-icon">📋</span><span>รายงาน</span>
+  </button>
+  <button class="mbn-item" onclick="showPage('cost',this)" id="mbn-cost">
+    <span class="mbn-icon">💰</span><span>ต้นทุน</span>
+  </button>
+  <button class="mbn-item" onclick="showPage('alert',this)" id="mbn-alert">
+    <span class="mbn-icon">🔔</span><span>แจ้งเตือน</span>
+  </button>
+</nav>
 
 <script>
 // ═══════════ CONFIG ═══════════
@@ -679,12 +755,39 @@ function renderPersonGrid() {
   var grid = document.getElementById('person-grid'); if (!grid) return;
   if (!SALES_LIST.length) {
     grid.innerHTML = '<div style="text-align:center;padding:40px;color:var(--g400);font-size:14px;grid-column:1/-1">⏳ กำลังโหลดรายชื่อเซล...<br><span style="font-size:12px;margin-top:8px;display:block">ถ้ารอนานให้รีเฟรชหน้า หรือตรวจสอบ Supabase URL</span></div>';
-    // ลอง reload ใหม่หลัง 2 วินาที
     setTimeout(function(){ if(!SALES_LIST.length) loadAll(); }, 2000);
     return;
   }
+  // populate filter dropdown
+  var sfSel = document.getElementById('sf-sales');
+  if(sfSel) {
+    var curVal = sfSel.value;
+    sfSel.innerHTML = '<option value="ALL">ทุกคน ('+ SALES_LIST.length +' คน)</option>';
+    SALES_LIST.forEach(function(p){
+      var opt = document.createElement('option');
+      opt.value = p.name; opt.textContent = p.name + ' — ' + p.team;
+      sfSel.appendChild(opt);
+    });
+    sfSel.value = curVal; // คงค่าเดิม
+  }
+  filterPersonGrid();
+}
+
+function filterPersonGrid() {
+  var grid = document.getElementById('person-grid'); if(!grid) return;
+  var sel = document.getElementById('sf-sales')?.value||'ALL';
+  var list = sel==='ALL' ? SALES_LIST : SALES_LIST.filter(function(p){return p.name===sel;});
+  var count = document.getElementById('sf-count');
+  if(count) count.textContent = sel==='ALL' ? '' : 'แสดง 1 คน';
   grid.innerHTML = '';
-  SALES_LIST.forEach(function(person) { grid.appendChild(buildPersonCard(person)); });
+  list.forEach(function(person){ grid.appendChild(buildPersonCard(person)); });
+  if(!list.length) grid.innerHTML='<div style="text-align:center;padding:30px;color:var(--g400);grid-column:1/-1">ไม่พบเซลที่เลือก</div>';
+  updateSummary();
+}
+
+function clearSalesFilter() {
+  var sel=document.getElementById('sf-sales'); if(sel){sel.value='ALL';}
+  filterPersonGrid();
 }
 
 function buildPersonCard(person) {
@@ -1120,8 +1223,13 @@ function renderConv(elId, m) {
 function showPage(name, el) {
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
   document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});
-  document.getElementById('page-'+name).classList.add('active');
+  document.querySelectorAll('.mbn-item').forEach(function(n){n.classList.remove('active');});
+  var pageEl = document.getElementById('page-'+name);
+  if(pageEl) pageEl.classList.add('active');
   if (el) el.classList.add('active');
+  // sync mobile nav
+  var mbn = document.getElementById('mbn-'+name);
+  if(mbn) mbn.classList.add('active');
   if (name==='entry') renderEntryPage();
   if (name==='cost') renderCost();
   if (name==='report') renderReport();
