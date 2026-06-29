@@ -349,15 +349,15 @@ body{font-family:'Sarabun',sans-serif;background:#f0f4f8;color:var(--g800);font-
 </div>
 <!-- COST -->
 <div class="page" id="page-cost">
-  <div class="page-hd"><div class="page-title">ต้นทุน & โปรโมท</div><div class="page-sub">กำหนดช่วงเวลา ใส่งบ คำนวณต้นทุนต่อ Lead/PS/BK</div></div>
+  <div class="page-hd"><div class="page-title">ต้นทุน & โปรโมท</div><div class="page-sub">กำหนดเดือนและงบโฆษณา คำนวณต้นทุนต่อ Lead/PS/BK แยก MU-X / P-UP</div></div>
   <div class="card">
-    <div class="card-hd"><div><div class="card-title">💰 กำหนดช่วงเวลาโปรโมท</div><div class="card-sub">ใส่จำนวนช่วง แล้วกำหนดวันที่และงบแต่ละช่วง</div></div></div>
+    <div class="card-hd"><div><div class="card-title">💰 กำหนดต้นทุนโฆษณา</div><div class="card-sub">เลือกเดือน ใส่งบแยกสาขาและรุ่น แล้วกด คำนวณ</div></div></div>
     <div class="card-body">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
-        <label style="font-size:12px;font-weight:600;color:var(--g600)">จำนวนช่วงเวลา:</label>
+        <label style="font-size:12px;font-weight:600;color:var(--g600)">เดือน:</label>
+        <select class="fsel" id="cost-month" onchange="calcAllCost()" style="min-width:160px"></select>
+        <label style="font-size:12px;font-weight:600;color:var(--g600)">จำนวนช่วง:</label>
         <input type="number" id="period-count" value="1" min="1" max="6" style="width:60px;padding:6px 10px;border:1.5px solid var(--g200);border-radius:7px;font-size:14px;font-weight:700;text-align:center;font-family:'Sarabun',sans-serif;outline:none">
-        <label style="font-size:12px;font-weight:600;color:var(--g600)">สาขา:</label>
-        <select class="fsel" id="cost-branch" onchange="calcAllCost()"><option value="ALL">ทั้งหมด</option><option>บางเสาธง</option><option>ศรีนครินทร์</option><option>บางนา</option></select>
         <button onclick="genPeriods()" style="background:var(--navy);color:#fff;border:none;padding:7px 16px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Sarabun',sans-serif">สร้างช่วงเวลา</button>
       </div>
       <div class="period-grid" id="period-grid"></div>
@@ -367,9 +367,16 @@ body{font-family:'Sarabun',sans-serif;background:#f0f4f8;color:var(--g800);font-
       </div>
     </div>
   </div>
+
+  <!-- สรุปผลรวม แยก MU-X / P-UP -->
+  <div class="card">
+    <div class="card-hd"><div class="card-title">📊 สรุปต้นทุน — แยกรุ่น</div></div>
+    <div class="card-body" id="cost-model-summary"></div>
+  </div>
+
   <div class="grid2">
-    <div class="card" style="margin-bottom:0"><div class="card-hd"><div class="card-title">📊 Conversion + อัตราส่วน</div></div><div class="card-body"><div class="conv-list" id="cost-conv"></div></div></div>
-    <div class="card" style="margin-bottom:0"><div class="card-hd"><div class="card-title">สรุปต้นทุนรวม</div></div><div class="card-body" id="cost-summary" style="display:grid;grid-template-columns:1fr;gap:9px"></div></div>
+    <div class="card" style="margin-bottom:0"><div class="card-hd"><div class="card-title">📈 Conversion + อัตราส่วน</div></div><div class="card-body"><div class="conv-list" id="cost-conv"></div></div></div>
+    <div class="card" style="margin-bottom:0"><div class="card-hd"><div class="card-title">สรุปต้นทุนรวม (ทุกรุ่น)</div></div><div class="card-body" id="cost-summary" style="display:grid;grid-template-columns:1fr;gap:9px"></div></div>
   </div>
 </div>
 
@@ -651,9 +658,15 @@ function updateClock() {
   document.getElementById('tb-datetime').textContent = days[d.getDay()]+' '+d.getDate()+' '+MONTH_TH[d.getMonth()]+' '+(d.getFullYear()+543)+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
 }
 function populateMonthSelects() {
-  ['f-month','r-month'].forEach(function(id) {
+  // คำนวณจำนวนเดือนย้อนหลังจาก ม.ค. 2569 (2026)
+  var startYear=2026, startMonth=1;
+  var totalBack = (CURR_YEAR-startYear)*12 + (CURR_MONTH+1-startMonth) + 1;
+  totalBack = Math.max(totalBack, 6);
+
+  ['f-month','r-month','cost-month'].forEach(function(id) {
     var sel=document.getElementById(id); if(!sel) return;
-    for(var i=0;i<6;i++){
+    sel.innerHTML='';
+    for(var i=0;i<totalBack;i++){
       var d=new Date(CURR_YEAR,CURR_MONTH-i,1);
       var val=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
       var opt=document.createElement('option');
@@ -989,35 +1002,65 @@ function renderAlerts() {
 
 // ═══════════════ REPORT ═══════════════
 function renderReport() {
-  var bf=document.getElementById('r-branch')?.value||'ALL';
-  var mf=document.getElementById('r-model')?.value||'ALL';
-  var entries=ALL_ENTRIES.filter(function(e){
-    return (bf==='ALL'||e.branch===bf)&&(mf==='ALL'||e.model===mf);
+  var bf  = document.getElementById('r-branch')?.value||'ALL';
+  var modF= document.getElementById('r-model')?.value||'ALL';
+  var rmf = document.getElementById('r-month')?.value||'';
+  var entries = ALL_ENTRIES.filter(function(e){
+    return (bf==='ALL'||e.branch===bf)
+        && (modF==='ALL'||e.model===modF)
+        && (!rmf||e.entry_date.startsWith(rmf));
   });
-  var agg={};
+
+  // ── Metric cards ──
+  var m = calcMetrics(entries);
+  var mEl = document.getElementById('rpt-metrics');
+  if(mEl) mEl.innerHTML =
+    metricCard('blue','👥','Lead',m.lead.toLocaleString(),'')+
+    metricCard('purple','🤝','PS',m.ps.toLocaleString(),'')+
+    metricCard('green','📋','BK',m.bk.toLocaleString(),'')+
+    metricCard('red','🎯','Lead→BK',m.lbRate+'%','อัตราส่วน '+m.lbRatio);
+
+  // ── TAB: รายสาขา ──
+  var aggBranch={};
   entries.forEach(function(e){
-    var k=e.branch+'|'+e.sales_name+'|'+e.team+'|'+e.model;
-    if(!agg[k]) agg[k]={branch:e.branch,name:e.sales_name,team:e.team||'',model:e.model,lead:0,ps:0,bk:0};
-    agg[k].lead+=e.lead||0; agg[k].ps+=e.ps||0; agg[k].bk+=e.bk||0;
+    var k=e.branch;
+    if(!aggBranch[k]) aggBranch[k]={label:k,branch:k,lead:0,ps:0,bk:0};
+    aggBranch[k].lead+=e.lead||0; aggBranch[k].ps+=e.ps||0; aggBranch[k].bk+=e.bk||0;
   });
-  var rows=Object.values(agg);
-  rows.sort(function(a,b){return a.branch.localeCompare(b.branch)||a.name.localeCompare(b.name);});
-  var totL=0,totP=0,totB=0;
-  rows.forEach(function(r){totL+=r.lead;totP+=r.ps;totB+=r.bk;});
-  var tbody=document.getElementById('report-tbody');
-  if(tbody) tbody.innerHTML=rows.map(function(r){
-    var lp=r.lead>0?(r.ps/r.lead*100).toFixed(1)+'%':'—';
-    var lpR=r.ps>0?'1:'+(r.lead/r.ps).toFixed(1):'—';
-    var pb=r.ps>0?(r.bk/r.ps*100).toFixed(1)+'%':'—';
-    var pbR=r.bk>0?'1:'+(r.ps/r.bk).toFixed(1):'—';
-    var lb=r.lead>0?(r.bk/r.lead*100).toFixed(1)+'%':'—';
-    return '<tr><td>'+r.branch+'</td><td>'+r.name+'</td><td>'+r.team+'</td><td><span style="font-size:10px;font-weight:700;background:var(--g100);padding:1px 6px;border-radius:4px">'+r.model+'</span></td><td class="num-b">'+r.lead+'</td><td class="num-p">'+r.ps+'</td><td class="num-g">'+r.bk+'</td><td class="num-p">'+lp+'</td><td style="color:var(--g400);font-size:10px">'+lpR+'</td><td class="num-g">'+pb+'</td><td style="color:var(--g400);font-size:10px">'+pbR+'</td><td class="num-r">'+lb+'</td></tr>';
-  }).join('');
-  var tfoot=document.getElementById('report-tfoot');
-  var totLp=totL>0?(totP/totL*100).toFixed(1)+'%':'—';
-  var totPb=totP>0?(totB/totP*100).toFixed(1)+'%':'—';
-  var totLb=totL>0?(totB/totL*100).toFixed(1)+'%':'—';
-  if(tfoot) tfoot.innerHTML='<td colspan="4">รวม</td><td class="num-b">'+totL+'</td><td class="num-p">'+totP+'</td><td class="num-g">'+totB+'</td><td class="num-p">'+totLp+'</td><td></td><td class="num-g">'+totPb+'</td><td></td><td class="num-r">'+totLb+'</td>';
+  renderAdminAggTable('rpt-tbody-branch','rpt-tfoot-branch',Object.values(aggBranch),false);
+
+  // ── TAB: รายทีม ──
+  var aggTeam={};
+  entries.forEach(function(e){
+    var k=(e.branch||'')+'|'+(e.team||'ไม่ระบุทีม');
+    if(!aggTeam[k]) aggTeam[k]={label:e.team||'ไม่ระบุทีม',branch:e.branch,lead:0,ps:0,bk:0,members:new Set()};
+    aggTeam[k].lead+=e.lead||0; aggTeam[k].ps+=e.ps||0; aggTeam[k].bk+=e.bk||0;
+    aggTeam[k].members.add(e.sales_name);
+  });
+  renderAdminAggTable('rpt-tbody-team','rpt-tfoot-team',Object.values(aggTeam),true);
+
+  // ── TAB: รายเซล ──
+  var aggSales={};
+  entries.forEach(function(e){
+    var k=e.branch+'|'+e.sales_name+'|'+e.model;
+    var person=(SETTINGS[e.branch]||{}).sales_list?.find(function(s){return s.name===e.sales_name;})||{};
+    if(!aggSales[k]) aggSales[k]={branch:e.branch,team:e.team||person.team||'',name:e.sales_name,position:person.position||'SC',model:e.model,lead:0,ps:0,bk:0};
+    aggSales[k].lead+=e.lead||0; aggSales[k].ps+=e.ps||0; aggSales[k].bk+=e.bk||0;
+  });
+  var salesRows=Object.values(aggSales).sort(function(a,b){return a.branch.localeCompare(b.branch)||a.name.localeCompare(b.name)||a.model.localeCompare(b.model);});
+  renderAdminSalesTable('rpt-tbody-sales','rpt-tfoot-sales',salesRows);
+
+  // ── TAB: รายรุ่น ──
+  var aggModel={};
+  entries.forEach(function(e){
+    var k=e.model||'ไม่ระบุ';
+    if(!aggModel[k]) aggModel[k]={label:k,branch:'',lead:0,ps:0,bk:0};
+    aggModel[k].lead+=e.lead||0; aggModel[k].ps+=e.ps||0; aggModel[k].bk+=e.bk||0;
+  });
+  renderAdminAggTable('rpt-tbody-model','rpt-tfoot-model',Object.values(aggModel),false);
+
+  // ── BK detail ──
+  renderAdminBKDetail();
 }
 
 // ═══════════════ COST ═══════════════
@@ -1028,24 +1071,47 @@ function genPeriods() {
   grid.innerHTML=''; periods=[];
   var BNAMES=['บางเสาธง','ศรีนครินทร์','บางนา'];
   var BKEYS=BNAMES.map(function(b){return b.replace(/\s/g,'_');});
+  var MODELS=['P-UP','MU-X'];
+  var MOD_COLOR={'P-UP':'var(--blue)','MU-X':'var(--red)'};
+
+  // default วันที่จาก cost-month dropdown
+  var cmf=document.getElementById('cost-month')?.value||'';
+  var defYear=CURR_YEAR, defMonth=CURR_MONTH+1;
+  if(cmf){var cp2=cmf.split('-');defYear=parseInt(cp2[0]);defMonth=parseInt(cp2[1]);}
+  var daysInDef=new Date(defYear,defMonth,0).getDate();
+
   for(var i=0;i<n;i++){
     periods.push(i);
-    var sd='2026-06-'+String(i*10+1).padStart(2,'0');
-    var ed='2026-06-'+String(Math.min(i*10+10,30)).padStart(2,'0');
+    var startD=1, endD=daysInDef;
+    if(n>1){ startD=Math.floor((i/n)*daysInDef)+1; endD=Math.floor(((i+1)/n)*daysInDef); }
+    var sd=defYear+'-'+String(defMonth).padStart(2,'0')+'-'+String(startD).padStart(2,'0');
+    var ed=defYear+'-'+String(defMonth).padStart(2,'0')+'-'+String(endD).padStart(2,'0');
+
     var pc=document.createElement('div');
-    pc.style.cssText='background:var(--g50);border:1.5px solid var(--g200);border-radius:10px;padding:14px 16px';
+    pc.style.cssText='background:var(--g50);border:1.5px solid var(--g200);border-radius:10px;padding:14px 16px;margin-bottom:8px';
+
     var brFields='';
     BNAMES.forEach(function(br,bi){
       var bk=BKEYS[bi];
+      var modInputs=MODELS.map(function(mod){
+        var mkey=mod.replace('-','');
+        return '<div style="flex:1">'
+          +'<div style="font-size:10px;font-weight:700;color:'+MOD_COLOR[mod]+';margin-bottom:3px">'+mod+'</div>'
+          +'<input type="number" id="p'+i+'-fb-'+bk+'-'+mkey+'" placeholder="0" min="0"'
+          +' style="width:100%;padding:6px 8px;border:1.5px solid var(--g200);border-radius:6px;font-size:13px;font-weight:600;font-family:\'Sarabun\',sans-serif;outline:none" oninput="calcAllCost()">'
+          +'<div style="font-size:9px;color:var(--g400);text-align:center;margin-top:3px">฿/Lead</div>'
+          +'<div style="font-size:12px;font-weight:700;color:'+MOD_COLOR[mod]+';text-align:center" id="p'+i+'-cpl-'+bk+'-'+mkey+'">฿—</div>'
+          +'</div>';
+      }).join('');
       brFields+='<div style="background:#fff;border-radius:8px;padding:10px 12px;border:1px solid var(--g200)">'
-        +'<div style="font-size:11px;font-weight:700;color:var(--navy);margin-bottom:6px">📍 '+br+'</div>'
-        +'<label style="font-size:10px;color:var(--g600);display:block;margin-bottom:3px">Facebook Ads (฿)</label>'
-        +'<input type="number" id="p'+i+'-fb-'+bk+'" placeholder="0" min="0"'
-        +' style="width:100%;padding:6px 8px;border:1.5px solid var(--g200);border-radius:6px;font-size:14px;font-weight:600;font-family:\'Sarabun\',sans-serif;outline:none" oninput="calcAllCost()">'
+        +'<div style="font-size:11px;font-weight:700;color:var(--navy);margin-bottom:8px">📍 '+br+'</div>'
+        +'<div style="display:flex;gap:8px">'+modInputs+'</div>'
         +'<div style="margin-top:6px;padding:5px 8px;background:var(--g50);border-radius:6px;text-align:center">'
-        +'<div style="font-size:9px;color:var(--g400);text-transform:uppercase">ต้นทุน/Lead</div>'
-        +'<div style="font-size:13px;font-weight:700;color:var(--blue)" id="p'+i+'-cpl-'+bk+'">฿—</div></div></div>';
+        +'<div style="font-size:9px;color:var(--g400)">฿/Lead รวม</div>'
+        +'<div style="font-size:12px;font-weight:700;color:var(--blue)" id="p'+i+'-cpl-'+bk+'">฿—</div></div>'
+        +'</div>';
     });
+
     pc.innerHTML='<div style="font-size:13px;font-weight:700;color:var(--g800);margin-bottom:10px;display:flex;align-items:center;gap:8px">'
       +'<span style="background:var(--navy);color:#fff;font-size:11px;padding:2px 9px;border-radius:20px">ช่วงที่ '+(i+1)+'</span></div>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">'
@@ -1054,11 +1120,13 @@ function genPeriods() {
       +'<div><label style="font-size:10px;font-weight:700;color:var(--g600);text-transform:uppercase;display:block;margin-bottom:4px">วันที่สิ้นสุด</label>'
       +'<input type="date" id="p'+i+'-end" value="'+ed+'" style="width:100%;padding:6px 10px;border:1.5px solid var(--g200);border-radius:7px;font-size:13px;font-family:\'Sarabun\',sans-serif;outline:none" oninput="calcAllCost()"></div></div>'
       +'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px">'+brFields+'</div>'
-      +'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;background:#fff;border-radius:8px;padding:9px 12px;border:1px solid var(--g200)">'
-      +'<div style="text-align:center"><div style="font-size:9px;color:var(--g400);text-transform:uppercase">งบรวมช่วงนี้</div><div style="font-size:16px;font-weight:800;color:var(--red)" id="p'+i+'-total">฿0</div></div>'
-      +'<div style="text-align:center"><div style="font-size:9px;color:var(--g400);text-transform:uppercase">ต้นทุน/Lead</div><div style="font-size:16px;font-weight:800;color:var(--blue)" id="p'+i+'-cpl-all">฿—</div></div>'
-      +'<div style="text-align:center"><div style="font-size:9px;color:var(--g400);text-transform:uppercase">ต้นทุน/PS</div><div style="font-size:16px;font-weight:800;color:var(--purple)" id="p'+i+'-cpp-all">฿—</div></div>'
-      +'<div style="text-align:center"><div style="font-size:9px;color:var(--g400);text-transform:uppercase">ต้นทุน/BK</div><div style="font-size:16px;font-weight:800;color:var(--green)" id="p'+i+'-cpb-all">฿—</div></div></div>';
+      +'<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;background:#fff;border-radius:8px;padding:9px 12px;border:1px solid var(--g200)">'
+      +'<div style="text-align:center"><div style="font-size:9px;color:var(--g400);text-transform:uppercase">งบรวมช่วงนี้</div><div style="font-size:15px;font-weight:800;color:var(--red)" id="p'+i+'-total">฿0</div></div>'
+      +'<div style="text-align:center"><div style="font-size:9px;color:var(--blue);font-weight:700">P-UP</div><div style="font-size:9px;color:var(--g400)">฿/Lead</div><div style="font-size:13px;font-weight:800;color:var(--blue)" id="p'+i+'-cpl-pup">฿—</div></div>'
+      +'<div style="text-align:center"><div style="font-size:9px;color:var(--red);font-weight:700">MU-X</div><div style="font-size:9px;color:var(--g400)">฿/Lead</div><div style="font-size:13px;font-weight:800;color:var(--red)" id="p'+i+'-cpl-mux">฿—</div></div>'
+      +'<div style="text-align:center"><div style="font-size:9px;color:var(--g400);text-transform:uppercase">฿/PS</div><div style="font-size:15px;font-weight:800;color:var(--purple)" id="p'+i+'-cpp-all">฿—</div></div>'
+      +'<div style="text-align:center"><div style="font-size:9px;color:var(--g400);text-transform:uppercase">฿/BK</div><div style="font-size:15px;font-weight:800;color:var(--green)" id="p'+i+'-cpb-all">฿—</div></div>'
+      +'</div>';
     grid.appendChild(pc);
   }
   calcAllCost();
@@ -1069,107 +1137,95 @@ function calcPeriodResult(i) { calcAllCost(); }
 
 function calcAllCost() {
   var BNAMES = ['บางเสาธง','ศรีนครินทร์','บางนา'];
-  var BKEYS  = ['บางเสาธง','ศรีนครินทร์','บางนา'].map(function(b){return b.replace(/\s/g,'_');});
-  var grandTotal = 0;
+  var BKEYS  = BNAMES.map(function(b){return b.replace(/\s/g,'_');});
+  var MODELS = ['P-UP','MU-X'];
+  var MKEYS  = ['PUP','MUX'];
+  var grandTotal=0, grandPUP=0, grandMUX=0;
+
+  // กรอง entries ตามเดือนที่เลือก
+  var cmf=document.getElementById('cost-month')?.value||'';
+  var costEntries = cmf ? ALL_ENTRIES_FULL.filter(function(e){return e.entry_date.startsWith(cmf);}) : ALL_ENTRIES_FULL;
 
   periods.forEach(function(i) {
-    var start = document.getElementById('p'+i+'-start')?.value||'';
-    var end   = document.getElementById('p'+i+'-end')?.value||'';
-    var periodTotal = 0;
+    var start=document.getElementById('p'+i+'-start')?.value||'';
+    var end  =document.getElementById('p'+i+'-end')?.value||'';
+    var periodTotal=0, periodPUP=0, periodMUX=0;
 
-    // คำนวณแยกสาขา
-    BNAMES.forEach(function(br, bi) {
-      var bk = BKEYS[bi];
-      var cost = parseFloat(document.getElementById('p'+i+'-fb-'+bk)?.value)||0;
-      periodTotal += cost;
-      var brEnt = ALL_ENTRIES_FULL.filter(function(e){ return e.branch===br && e.entry_date>=start && e.entry_date<=end; });
-      var lead = brEnt.reduce(function(s,e){return s+(e.lead||0);},0)||1;
-      var el = document.getElementById('p'+i+'-cpl-'+bk);
-      if(el) el.textContent = cost>0 ? '฿'+(cost/lead).toFixed(0) : '฿—';
+    BNAMES.forEach(function(br,bi){
+      var bk=BKEYS[bi];
+      var brTotalAll=0;
+      MODELS.forEach(function(mod,mi){
+        var mkey=MKEYS[mi];
+        var cost=parseFloat(document.getElementById('p'+i+'-fb-'+bk+'-'+mkey)?.value)||0;
+        periodTotal+=cost; brTotalAll+=cost;
+        if(mod==='P-UP') periodPUP+=cost;
+        if(mod==='MU-X') periodMUX+=cost;
+        var brModEnt=costEntries.filter(function(e){return e.branch===br&&e.model===mod&&e.entry_date>=start&&e.entry_date<=end;});
+        var lead=brModEnt.reduce(function(s,e){return s+(e.lead||0);},0);
+        var elCpl=document.getElementById('p'+i+'-cpl-'+bk+'-'+mkey);
+        if(elCpl) elCpl.textContent=cost>0&&lead>0?'฿'+(cost/lead).toFixed(0):'฿—';
+      });
+      var brAllEnt=costEntries.filter(function(e){return e.branch===br&&e.entry_date>=start&&e.entry_date<=end;});
+      var brLead=brAllEnt.reduce(function(s,e){return s+(e.lead||0);},0);
+      var elBr=document.getElementById('p'+i+'-cpl-'+bk);
+      if(elBr) elBr.textContent=brTotalAll>0&&brLead>0?'฿'+(brTotalAll/brLead).toFixed(0):'฿—';
     });
-    grandTotal += periodTotal;
+    grandTotal+=periodTotal; grandPUP+=periodPUP; grandMUX+=periodMUX;
 
-    // รวมช่วง
-    var pEnt  = ALL_ENTRIES_FULL.filter(function(e){return e.entry_date>=start && e.entry_date<=end;});
-    var pL = pEnt.reduce(function(s,e){return s+(e.lead||0);},0)||1;
-    var pP = pEnt.reduce(function(s,e){return s+(e.ps||0);},0)||1;
-    var pB = pEnt.reduce(function(s,e){return s+(e.bk||0);},0)||1;
+    var pEnt=costEntries.filter(function(e){return e.entry_date>=start&&e.entry_date<=end;});
+    var pEnt_pup=pEnt.filter(function(e){return e.model==='P-UP';});
+    var pEnt_mux=pEnt.filter(function(e){return e.model==='MU-X';});
+    var pL_pup=pEnt_pup.reduce(function(s,e){return s+(e.lead||0);},0);
+    var pL_mux=pEnt_mux.reduce(function(s,e){return s+(e.lead||0);},0);
+    var pP=pEnt.reduce(function(s,e){return s+(e.ps||0);},0);
+    var pB=pEnt.reduce(function(s,e){return s+(e.bk||0);},0);
     var t=document.getElementById('p'+i+'-total');   if(t)   t.textContent='฿'+periodTotal.toLocaleString();
-    var cl=document.getElementById('p'+i+'-cpl-all');if(cl)  cl.textContent=periodTotal>0?'฿'+(periodTotal/pL).toFixed(0):'฿—';
-    var cp=document.getElementById('p'+i+'-cpp-all');if(cp)  cp.textContent=periodTotal>0?'฿'+(periodTotal/pP).toFixed(0):'฿—';
-    var cb=document.getElementById('p'+i+'-cpb-all');if(cb)  cb.textContent=periodTotal>0?'฿'+(periodTotal/pB).toFixed(0):'฿—';
+    var cp_pup=document.getElementById('p'+i+'-cpl-pup'); if(cp_pup) cp_pup.textContent=periodPUP>0&&pL_pup>0?'฿'+(periodPUP/pL_pup).toFixed(0):'฿—';
+    var cp_mux=document.getElementById('p'+i+'-cpl-mux'); if(cp_mux) cp_mux.textContent=periodMUX>0&&pL_mux>0?'฿'+(periodMUX/pL_mux).toFixed(0):'฿—';
+    var cp=document.getElementById('p'+i+'-cpp-all');if(cp)  cp.textContent=periodTotal>0&&pP>0?'฿'+(periodTotal/pP).toFixed(0):'฿—';
+    var cb=document.getElementById('p'+i+'-cpb-all');if(cb)  cb.textContent=periodTotal>0&&pB>0?'฿'+(periodTotal/pB).toFixed(0):'฿—';
   });
 
   var lbl=document.getElementById('cost-total-lbl'); if(lbl) lbl.textContent='฿'+grandTotal.toLocaleString();
 
-  // ผลลัพธ์แยกสาขา
-  var brRes=document.getElementById('cost-branch-results');
-  if(brRes) {
-    brRes.innerHTML = BNAMES.map(function(br,bi){
-      var bk=BKEYS[bi];
-      var brTotal=0;
-      periods.forEach(function(i){ brTotal+=parseFloat(document.getElementById('p'+i+'-fb-'+bk)?.value)||0; });
-      var brEnt=ALL_ENTRIES_FULL.filter(function(e){return e.branch===br;});
-      var m=calcMetrics(brEnt);
-      return '<div style="background:#fff;border:1px solid var(--g200);border-radius:11px;overflow:hidden">'
-        +'<div style="background:var(--navy);color:#fff;padding:9px 14px;font-size:12px;font-weight:700">📍 สาขา'+br+'</div>'
-        +'<div style="padding:12px 14px">'
-        +'<div style="font-size:13px;font-weight:700;color:var(--red);margin-bottom:8px">งบรวม ฿'+brTotal.toLocaleString()+'</div>'
-        +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;text-align:center">'
-        +'<div style="background:var(--blue-l);border-radius:7px;padding:7px"><div style="font-size:9px;color:var(--blue);font-weight:700;text-transform:uppercase">ต้นทุน/Lead</div>'
-        +'<div style="font-size:16px;font-weight:800;color:var(--blue)">'+(brTotal>0&&m.lead>0?'฿'+(brTotal/m.lead).toFixed(0):'฿—')+'</div>'
-        +'<div style="font-size:10px;color:var(--g400)">Lead '+m.lead+'</div></div>'
-        +'<div style="background:var(--purple-l);border-radius:7px;padding:7px"><div style="font-size:9px;color:var(--purple);font-weight:700;text-transform:uppercase">ต้นทุน/PS</div>'
-        +'<div style="font-size:16px;font-weight:800;color:var(--purple)">'+(brTotal>0&&m.ps>0?'฿'+(brTotal/m.ps).toFixed(0):'฿—')+'</div>'
-        +'<div style="font-size:10px;color:var(--g400)">PS '+m.ps+'</div></div>'
-        +'<div style="background:var(--green-l);border-radius:7px;padding:7px"><div style="font-size:9px;color:var(--green);font-weight:700;text-transform:uppercase">ต้นทุน/BK</div>'
-        +'<div style="font-size:16px;font-weight:800;color:var(--green)">'+(brTotal>0&&m.bk>0?'฿'+(brTotal/m.bk).toFixed(0):'฿—')+'</div>'
-        +'<div style="font-size:10px;color:var(--g400)">BK '+m.bk+'</div></div>'
-        +'</div></div></div>';
-    }).join('');
-  }
+  // สรุปแยกรุ่น
+  var ent_all = costEntries;
+  var ent_pup = ent_all.filter(function(e){return e.model==='P-UP';});
+  var ent_mux = ent_all.filter(function(e){return e.model==='MU-X';});
+  var mPUP=calcMetrics(ent_pup), mMUX=calcMetrics(ent_mux), mAll=calcMetrics(ent_all);
+
+  var modSum=document.getElementById('cost-model-summary');
+  if(modSum) modSum.innerHTML=[
+    {label:'P-UP',color:'var(--blue)',total:grandPUP,m:mPUP},
+    {label:'MU-X',color:'var(--red)',total:grandMUX,m:mMUX},
+    {label:'รวมทุกรุ่น',color:'var(--navy)',total:grandTotal,m:mAll},
+  ].map(function(r){
+    return '<div style="background:var(--g50);border-radius:10px;padding:12px 14px;margin-bottom:8px;border:1.5px solid var(--g200)">'
+      +'<div style="font-size:12px;font-weight:700;color:'+r.color+';margin-bottom:8px">'+r.label
+        +' — งบ ฿'+r.total.toLocaleString()
+        +(cmf?' (เดือน '+MONTH_TH[parseInt(cmf.split('-')[1])-1]+' '+(parseInt(cmf.split('-')[0])+543)+')':' (ทุกเดือน)')+'</div>'
+      +'<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;text-align:center">'
+      +'<div style="background:#fff;border-radius:7px;padding:7px;border:1px solid var(--g200)"><div style="font-size:9px;color:var(--g400)">Lead</div><div style="font-size:16px;font-weight:800;color:var(--blue)">'+r.m.lead+'</div></div>'
+      +'<div style="background:#fff;border-radius:7px;padding:7px;border:1px solid var(--g200)"><div style="font-size:9px;color:var(--g400)">฿/Lead</div><div style="font-size:16px;font-weight:800;color:var(--blue)">'+(r.total>0&&r.m.lead>0?'฿'+(r.total/r.m.lead).toFixed(0):'—')+'</div></div>'
+      +'<div style="background:#fff;border-radius:7px;padding:7px;border:1px solid var(--g200)"><div style="font-size:9px;color:var(--g400)">PS</div><div style="font-size:9px;color:var(--g400)">฿/PS</div><div style="font-size:16px;font-weight:800;color:var(--purple)">'+(r.total>0&&r.m.ps>0?'฿'+(r.total/r.m.ps).toFixed(0):'—')+'</div></div>'
+      +'<div style="background:#fff;border-radius:7px;padding:7px;border:1px solid var(--g200)"><div style="font-size:9px;color:var(--g400)">BK</div><div style="font-size:9px;color:var(--g400)">฿/BK</div><div style="font-size:16px;font-weight:800;color:var(--green)">'+(r.total>0&&r.m.bk>0?'฿'+(r.total/r.m.bk).toFixed(0):'—')+'</div></div>'
+      +'<div style="background:#fff;border-radius:7px;padding:7px;border:1px solid var(--g200)"><div style="font-size:9px;color:var(--g400)">LP%</div><div style="font-size:12px;font-weight:700;color:var(--purple)">'+r.m.lpRate+'%</div><div style="font-size:9px;color:var(--g400)">PB%</div><div style="font-size:12px;font-weight:700;color:var(--green)">'+r.m.pbRate+'%</div></div>'
+      +'</div></div>';
+  }).join('');
 
   // สรุปรวม
-  var m=calcMetrics(ALL_ENTRIES_FULL);
-  var sumEl=document.getElementById('cost-summary-cards');
+  var sumEl=document.getElementById('cost-summary');
   if(sumEl) sumEl.innerHTML=[
-    ['ต้นทุน / Lead','var(--blue)',grandTotal>0&&m.lead>0?'฿'+(grandTotal/m.lead).toFixed(0):'฿—'],
-    ['ต้นทุน / PS','var(--purple)',grandTotal>0&&m.ps>0?'฿'+(grandTotal/m.ps).toFixed(0):'฿—'],
-    ['ต้นทุน / BK','var(--green)',grandTotal>0&&m.bk>0?'฿'+(grandTotal/m.bk).toFixed(0):'฿—'],
+    ['฿ / Lead (รวม)','var(--blue)',grandTotal>0&&mAll.lead>0?'฿'+(grandTotal/mAll.lead).toFixed(0):'฿—'],
+    ['฿ / PS (รวม)','var(--purple)',grandTotal>0&&mAll.ps>0?'฿'+(grandTotal/mAll.ps).toFixed(0):'฿—'],
+    ['฿ / BK (รวม)','var(--green)',grandTotal>0&&mAll.bk>0?'฿'+(grandTotal/mAll.bk).toFixed(0):'฿—'],
   ].map(function(r){
-    return '<div style="background:var(--g50);border-radius:8px;padding:12px;text-align:center;margin-bottom:8px">'
+    return '<div style="background:var(--g50);border-radius:8px;padding:12px;text-align:center">'
       +'<div style="font-size:10px;font-weight:700;color:'+r[1]+';text-transform:uppercase;letter-spacing:.4px">'+r[0]+'</div>'
       +'<div style="font-size:24px;font-weight:800;color:'+r[1]+';margin-top:4px">'+r[2]+'</div></div>';
   }).join('');
-  renderConv('cost-conv',calcMetrics(ALL_ENTRIES_FULL));
-}
 
-async function saveCostPeriods() {
-  if(!sb){showToast('ไม่ได้เชื่อมต่อ Supabase');return;}
-  var BNAMES=['บางเสาธง','ศรีนครินทร์','บางนา'];
-  var BKEYS=BNAMES.map(function(b){return b.replace(/\s/g,'_');});
-  var saved=0;
-  for(var i of periods){
-    var start=document.getElementById('p'+i+'-start')?.value; if(!start) continue;
-    var end=document.getElementById('p'+i+'-end')?.value; if(!end) continue;
-    for(var bi=0;bi<BNAMES.length;bi++){
-      var br=BNAMES[bi]; var bk=BKEYS[bi];
-      var fb=parseFloat(document.getElementById('p'+i+'-fb-'+bk)?.value)||0;
-      if(fb===0) continue;
-      try{
-        await sb.from('promo_costs').upsert({branch:br,period_label:'ช่วงที่ '+(i+1),date_start:start,date_end:end,cost_facebook:fb,cost_google:0,cost_line:0,cost_event:0},{onConflict:'branch,date_start,date_end'});
-        saved++;
-      }catch(e){console.error(e);}
-    }
-  }
-  showToast('✅ บันทึกต้นทุน '+saved+' รายการ');
-}
-
-
-function renderCostConv() {
-  var m=calcMetrics(ALL_ENTRIES);
-  var el=document.getElementById('cost-conv'); if(!el) return;
-  el.innerHTML=convItem('Lead → PS',m.lpRate,m.lpRatio,m.ps,m.lead,'Lead','var(--purple)')+convItem('PS → BK',m.pbRate,m.pbRatio,m.bk,m.ps,'PS','var(--green)')+convItem('Lead → BK',m.lbRate,m.lbRatio,m.bk,m.lead,'Lead','var(--red)');
+  renderConv('cost-conv', mAll);
 }
 
 // ═══════════════ SETTINGS ═══════════════
