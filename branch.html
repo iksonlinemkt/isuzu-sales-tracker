@@ -670,6 +670,18 @@ async function loadAll() {
     var {data: costs} = await sb.from('promo_costs').select('*').eq('branch', BRANCH);
     COST_PERIODS = costs||[];
 
+    // ถ้า connect ได้แต่ไม่มี sales_list ใน settings → ดึงชื่อเซลจาก entries ที่มีอยู่
+    if (!SALES_LIST.length && ALL_ENTRIES.length) {
+      var uniqueSales = {};
+      ALL_ENTRIES.forEach(function(e){
+        if(e.sales_name && !uniqueSales[e.sales_name]) uniqueSales[e.sales_name] = e.team||'';
+      });
+      SALES_LIST = Object.keys(uniqueSales).map(function(n){ return {name:n, team:uniqueSales[n]}; });
+    }
+    if (!CAR_MODELS_PUP.length) CAR_MODELS_PUP = ['Cab4 HR','Cab4 NR','SPC HR','SPC NR','STD'];
+    if (!CAR_MODELS_MUX.length) CAR_MODELS_MUX = ['Active','Elegant','Ultimate','RS'];
+    if (!CAREERS.length) CAREERS = ['เกษตรกร','รับราชการ','พนักงานบริษัท','ธุรกิจส่วนตัว','รับจ้างทั่วไป','ค้าขาย'];
+
     renderAll();
   } catch(err) {
     setOnline(false);
@@ -858,7 +870,11 @@ function renderPersonGrid() {
   var grid = document.getElementById('person-grid'); if (!grid) return;
   if (!SALES_LIST.length) {
     grid.innerHTML = '<div style="text-align:center;padding:40px;color:var(--g400);font-size:14px;grid-column:1/-1">⏳ กำลังโหลดรายชื่อเซล...<br><span style="font-size:12px;margin-top:8px;display:block">ถ้ารอนานให้รีเฟรชหน้า หรือตรวจสอบ Supabase URL</span></div>';
-    setTimeout(function(){ if(!SALES_LIST.length) loadAll(); }, 2000);
+    setTimeout(function(){
+      if(!SALES_LIST.length) {
+        loadAll().then(function(){ if(SALES_LIST.length) renderPersonGrid(); });
+      }
+    }, 2000);
     return;
   }
   // populate filter dropdown — restore ค่าเดิมถ้ายังมีอยู่
